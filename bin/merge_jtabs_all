@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+merge_jtabs_all
+
+Combine junction coverages for multiple samples
+
+"""
+
+import re
+import sys
+import csv
+import collections
+import time
+
+
+def readtabs(myfile):
+	"""
+	Makes single junction table
+	"""
+	JTAB = collections.defaultdict(lambda : collections.defaultdict(dict))
+	lines = csv.reader(open(myfile, 'rb'), delimiter='\t')
+	linecount = 0
+	for line in lines:
+		#print line
+		if (linecount < 1):
+			keys = line
+		else: 
+			values = line
+			linedict = dict(zip(keys, values))
+			juncid = str(linedict['juncid']).rstrip(" ")
+			JTAB[juncid] = linedict
+		linecount += 1
+	return JTAB
+
+def main():
+
+	jfile = sys.argv[1].split(",")
+	combined = collections.defaultdict(lambda : collections.defaultdict(dict))
+
+	counter = 0
+	test = 0
+	for i in jfile:
+		counter += 1
+		JTAB = readtabs(i)
+		if (counter < 2):
+			for juncid in JTAB:
+				combined[juncid] = JTAB[juncid]
+				combined[juncid]['numsamps'] = 1
+		else:
+			for juncid in JTAB:
+				if combined[juncid]:
+					combined[juncid]['irt'] = int(JTAB[juncid]['irt']) + int(combined[juncid]['irt'])
+					combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] )
+					combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )
+					combined[juncid]['ancov'] = int(JTAB[juncid]['ancov']) + int(combined[juncid]['ancov'])
+					combined[juncid]['numsamps'] += 1
+				else:
+					combined[juncid] = JTAB[juncid]
+					combined[juncid]['numsamps'] = 1
+
+	print "juncid\tgeneassign\tcov\tirt\tdncov\tancov\tnumsamps"			
+	for juncid in combined.keys():
+		print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['irt'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
+	
+
+if __name__ == "__main__":
+    sys.exit(main())
+

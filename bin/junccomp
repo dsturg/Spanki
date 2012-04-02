@@ -1,0 +1,190 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+junccomp
+
+Makes comparisons on the junction level, independent of
+splicing event definitions
+"""
+from __future__ import division 
+import sys
+import csv
+import argparse
+import collections
+import operator
+
+from fisher import pvalue
+# Uses brent pedersen's model from pypi
+
+from scikits.statsmodels.sandbox.stats.multicomp import fdrcorrection0
+# BH correction is from http://statsmodels.sourceforge.net/devel/install.html
+
+# Custom modules to import:
+import spanky.spanky_parse_utils as spanky_parse_utils
+import spanky.spanky_utils as spanky_utils
+
+
+def tab_to_dict(tabfile):
+	"""
+	Generic make a dict from a table
+	Assumes first column has key
+	and there are column headers
+	"""
+	mytab = {}
+	lines = csv.reader(open(tabfile, 'rb'), delimiter='\t')
+	linecount = 0
+	for line in lines:
+		if (linecount < 1):
+			"""
+			First line is column header - use as keys
+			"""
+			keys = line
+		else: 
+			values = line
+			linedict = dict(zip(keys, values))
+			id = str(values[0])
+			mytab[id] = linedict 
+			#print "adding to ",linedict['juncid']
+			#print linedict
+		linecount += 1
+	return mytab
+
+def print_dict_sorted_ordered(mydict,fout,sortfield,fieldorder):
+	mykeys = fieldorder
+	mytup = []
+	print >> fout, "juncid\t", '\t'.join(fieldorder)
+	# Get tuples of event and sort field
+	for x in mydict.keys():
+		mytup.append([x,mydict[x][sortfield]])
+	# Get list of keys sorted by sort field
+	#sorted_mytup = sorted(mytup.iteritems(), key=operator.itemgetter(1))
+	#sorted(student_tuples, key=itemgetter(2))
+	sorted_keys = sorted(mytup, key=operator.itemgetter(1), reverse=False)
+	mykeys = tuple(x[0] for x in sorted_keys)
+	for x in mykeys:
+		vals = []
+		for field in fieldorder:
+			vals.append(mydict[x][field])
+		print >> fout, x, '\t', '\t'.join(map(str,vals))
+
+def parse_options():
+	parser = argparse.ArgumentParser(description='Compile junction data')
+	parser.add_argument('-a', help='tab1', action="store", dest="a")
+	parser.add_argument('-b', help='tab2', action="store", dest="b")
+	parser.add_argument('-o', help='output file dir', action="store", dest="o", default="junccomp_out")
+	args = parser.parse_args()
+	return args
+
+# initialize parameters
+args = parse_options()
+tabfile1 = args.a
+tabfile2 = args.b
+outfile = args.o
+
+# Prepare output directory
+output_dir = outfile
+spanky_utils.prepare_output_dir(output_dir)
+
+comp_out_name = output_dir + "/junc_compare.out"
+comp_out = open(comp_out_name, "w")
+
+
+def main():
+	#~~~~~~~~~~~~~~~~~~~
+	# Load table 1
+	#~~~~~~~~~~~~~~~~~~~
+	tab1 = tab_to_dict(tabfile1)
+	#~~~~~~~~~~~~~~~~~~~
+	# Load table 2
+	#~~~~~~~~~~~~~~~~~~~
+	tab2 = tab_to_dict(tabfile2)
+	#~~~~~~~~~~~~~~~~~~~
+	# Do the tests
+	#~~~~~~~~~~~~~~~~~~~
+
+	myresults = collections.defaultdict(lambda : collections.defaultdict(dict))
+
+	p_irt = []
+	p_dncov = []
+	p_ancov = []
+	p_tncov = []
+	
+	keys1 = tab1.keys()
+	keys2 = tab2.keys()
+
+	print "Getting intersection between tables"
+	keyoverlap = [x for x in keys1 if x in keys2]
+	counter = len(keyoverlap)
+
+	for x in keyoverlap:
+		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['irt']) , int(tab2[x]['cov']), int(tab2[x]['irt']))
+		myresults[x]['pval_irt'] = p.two_tail
+		p_irt.append(p.two_tail)
+		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']))
+		myresults[x]['pval_dncov'] = p.two_tail
+		p_dncov.append(p.two_tail)
+		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['ancov']))
+		myresults[x]['pval_ancov'] = p.two_tail
+		p_ancov.append(p.two_tail)
+		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']) + int(tab2[x]['ancov']))
+		myresults[x]['pval_tncov'] = p.two_tail
+		p_tncov.append(p.two_tail)
+		
+		myresults[x]['geneassign'] = tab1[x]['geneassign']
+		myresults[x]['cov1'] = tab1[x]['cov']
+		myresults[x]['cov2'] = tab2[x]['cov']
+		myresults[x]['irt1'] = tab1[x]['irt']
+		myresults[x]['irt2'] = tab2[x]['irt']
+		myresults[x]['dncov1'] = tab1[x]['dncov']
+		myresults[x]['dncov2'] = tab2[x]['dncov']
+		myresults[x]['ancov1'] = tab1[x]['ancov']
+		myresults[x]['ancov2'] = tab2[x]['ancov']
+			
+	#~~~~~~~~~~~~~~~~~~~
+	# FDR correction
+	#~~~~~~~~~~~~~~~~~~~
+	alpha = 0.05
+	bh_pvals_irt = fdrcorrection0(p_irt, alpha=alpha, method='indep')[1]
+	bh_pvals_dncov = fdrcorrection0(p_dncov, alpha=alpha, method='indep')[1]
+	bh_pvals_ancov = fdrcorrection0(p_ancov, alpha=alpha, method='indep')[1]
+	bh_pvals_tncov = fdrcorrection0(p_tncov, alpha=alpha, method='indep')[1]
+	
+	qconv_irt = dict(zip(p_irt,bh_pvals_irt))
+	qconv_dncov = dict(zip(p_dncov,bh_pvals_dncov))
+	qconv_ancov = dict(zip(p_ancov,bh_pvals_ancov))
+	qconv_tncov = dict(zip(p_tncov,bh_pvals_tncov))
+	
+	#for q in bh_pvals:
+		#if (q < 0.05):  
+			#print >> comp_out, "Q:", q
+			
+	for x in myresults:
+		#print >> comp_out, event, myresults[event]['inc1'], myresults[event]['exc1'], myresults[event]['inc2'], myresults[event]['exc2'], myresults[event]['pval'], qconv[myresults[event]['pval']]
+		myresults[x]['qval_irt'] = qconv_irt[myresults[x]['pval_irt']]
+		myresults[x]['qval_ancov'] = qconv_ancov[myresults[x]['pval_ancov']]
+		myresults[x]['qval_dncov'] = qconv_dncov[myresults[x]['pval_dncov']]
+		myresults[x]['qval_tncov'] = qconv_tncov[myresults[x]['pval_tncov']]
+		allp = [myresults[x]['pval_irt'],myresults[x]['pval_ancov'],myresults[x]['pval_dncov'],myresults[x]['pval_tncov']]
+		myresults[x]['minp'] = min(allp)
+
+	fieldorder = ['geneassign','cov1','irt1','dncov1','ancov1','cov2','irt2','dncov2','ancov2',
+	'pval_irt','qval_irt','pval_dncov','qval_dncov','pval_ancov','qval_ancov','pval_tncov','qval_tncov','minp']
+
+	sortfield = 'minp'
+	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder)
+
+	print "[%s] Run completed" % (spanky_utils.timestamp())
+
+	
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+
+
+
+
+
+
+
+

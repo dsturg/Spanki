@@ -1,0 +1,168 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+splicecomp.py
+
+Fisher exact tests on spicing event data
+"""
+from __future__ import division 
+import sys
+import csv
+import argparse
+import collections
+import operator
+
+from fisher import pvalue
+# Uses brent pedersen's model from pypi
+
+from scikits.statsmodels.sandbox.stats.multicomp import fdrcorrection0
+# BH correction is from http://statsmodels.sourceforge.net/devel/install.html
+
+# Custom modules to import:
+import spanky.spanky_parse_utils as spanky_parse_utils
+import spanky.spanky_utils as spanky_utils
+
+def tab_to_dict(tabfile):
+	"""
+	Generic make a dict from a table
+	Assumes first column has key
+	and there are column headers
+	"""
+	mytab = {}
+	lines = csv.reader(open(tabfile, 'rb'), delimiter='\t')
+	linecount = 0
+	for line in lines:
+		if (linecount < 1):
+			"""
+			First line is column header - use as keys
+			"""
+			keys = line
+		else: 
+			values = line
+			linedict = dict(zip(keys, values))
+			id = str(values[0])
+			mytab[id] = linedict 
+			#print "adding to ",linedict['juncid']
+			#print linedict
+		linecount += 1
+	return mytab
+
+def print_dict_sorted_ordered(mydict,fout,sortfield,fieldorder):
+	mykeys = fieldorder
+	mytup = []
+	print >> fout, "juncid\t", '\t'.join(fieldorder)
+	# Get tuples of event and sort field
+	for x in mydict.keys():
+		mytup.append([x,mydict[x][sortfield]])
+	# Get list of keys sorted by sort field
+	#sorted_mytup = sorted(mytup.iteritems(), key=operator.itemgetter(1))
+	#sorted(student_tuples, key=itemgetter(2))
+	sorted_keys = sorted(mytup, key=operator.itemgetter(1), reverse=False)
+	mykeys = tuple(x[0] for x in sorted_keys)
+	for x in mykeys:
+		vals = []
+		for field in fieldorder:
+			vals.append(mydict[x][field])
+		print >> fout, x, '\t', '\t'.join(map(str,vals))
+
+def parse_options():
+	parser = argparse.ArgumentParser(description='Compile asta data.')
+	parser.add_argument('-a', help='tab1', action="store", dest="a")
+	parser.add_argument('-b', help='tab2', action="store", dest="b")
+	parser.add_argument('-o', help='output file name', action="store", dest="o", default="splicecomp_out")
+	args = parser.parse_args()
+	return args
+
+# initialize parameters
+args = parse_options()
+tabfile1 = args.a
+tabfile2 = args.b
+outfile = args.o
+
+# Prepare output directory
+output_dir = outfile
+spanky_utils.prepare_output_dir(output_dir)
+
+comp_out_name = output_dir + "/event_compare.out"
+comp_out = open(comp_out_name, "w")
+
+def main():
+	#~~~~~~~~~~~~~~~~~~~
+	# Load table 1
+	#~~~~~~~~~~~~~~~~~~~
+	tab1 = tab_to_dict(tabfile1)
+	#~~~~~~~~~~~~~~~~~~~
+	# Load table 2
+	#~~~~~~~~~~~~~~~~~~~
+	tab2 = tab_to_dict(tabfile2)
+	#~~~~~~~~~~~~~~~~~~~
+	# Do the tests
+	#~~~~~~~~~~~~~~~~~~~
+
+	myresults = collections.defaultdict(lambda : collections.defaultdict(dict))
+
+	plist = []
+	padjlist = []
+	for event in tab1:
+		p = pvalue(int(tab1[event]['inc']), int(tab1[event]['exc']) , int(tab2[event]['inc']), int(tab2[event]['exc']))
+		padj = pvalue(int(tab1[event]['inc_adj']), int(tab1[event]['exc_adj']) , int(tab2[event]['inc_adj']), int(tab2[event]['exc_adj']))
+		plist.append(p.two_tail)
+		padjlist.append(padj.two_tail)
+		myresults[event]['gnames'] = tab1[event]['gnames']
+		myresults[event]['gids'] = tab1[event]['gids']
+		myresults[event]['eventcode'] = tab1[event]['eventcode']
+		myresults[event]['structure'] = tab1[event]['structure']
+		myresults[event]['transcript_id'] = tab1[event]['transcript_id']
+		myresults[event]['inc1'] = int(tab1[event]['inc'])
+		myresults[event]['exc1'] = int(tab1[event]['exc'])
+		myresults[event]['inc1_adj'] = int(tab1[event]['inc_adj'])
+		myresults[event]['exc1_adj'] = int(tab1[event]['exc_adj'])
+		myresults[event]['psi1'] = float(tab1[event]['psi'])
+		myresults[event]['psi1_adj'] = float(tab1[event]['psi_adj'])
+
+		myresults[event]['inc2'] = int(tab2[event]['inc'])
+		myresults[event]['exc2'] = int(tab2[event]['exc'])
+		myresults[event]['inc2_adj'] = int(tab2[event]['inc_adj'])
+		myresults[event]['exc2_adj'] = int(tab2[event]['exc_adj'])
+		myresults[event]['psi2'] = float(tab2[event]['psi'])
+		myresults[event]['psi2_adj'] = float(tab2[event]['psi_adj'])
+
+		myresults[event]['delta_psi'] = myresults[event]['psi1'] - myresults[event]['psi2'] 
+		myresults[event]['delta_psi_adj'] = myresults[event]['psi1_adj'] - myresults[event]['psi2_adj'] 
+		myresults[event]['pval'] = p.two_tail
+		myresults[event]['pval_adj'] = padj.two_tail
+		myresults[event]['fpkm_proportion1'] = tab1[event]['fpkm_proportion']
+		myresults[event]['fpkm_proportion2'] = tab2[event]['fpkm_proportion']
+	#~~~~~~~~~~~~~~~~~~~
+	# FDR correction
+	#~~~~~~~~~~~~~~~~~~~
+	alpha = 0.05
+	
+	bh_pvals = fdrcorrection0(plist, alpha=alpha, method='indep')[1]
+	bh_pvals_adj = fdrcorrection0(padjlist, alpha=alpha, method='indep')[1]
+	
+	#myq = collections.defaultdict(lambda : collections.defaultdict(dict))
+	qconv = dict(zip(plist,bh_pvals))
+	qadjconv = dict(zip(padjlist,bh_pvals_adj))
+	
+	#for q in bh_pvals:
+		#if (q < 0.05):  
+			#print >> comp_out, "Q:", q
+			
+	for event in myresults:
+		#print >> comp_out, event, myresults[event]['inc1'], myresults[event]['exc1'], myresults[event]['inc2'], myresults[event]['exc2'], myresults[event]['pval'], qconv[myresults[event]['pval']]
+		myresults[event]['qval'] = qconv[myresults[event]['pval']]
+		myresults[event]['qval_adj'] = qadjconv[myresults[event]['pval_adj']]
+
+	#printDict(myresults,comp_out)
+	fieldorder = ['gnames','gids','transcript_id','eventcode','structure','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval',
+	'inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj','fpkm_proportion1','fpkm_proportion2']
+	sortfield = 'pval'
+	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder)
+
+	print "[%s] Run completed" % (spanky_utils.timestamp())
+
+	
+if __name__ == "__main__":
+    sys.exit(main())
+
