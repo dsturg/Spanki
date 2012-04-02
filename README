@@ -1,0 +1,46 @@
+Splicing analysis toolkit (Spanky) v.0.1.2
+
+Overview
+==============
+Spanky is a set of tools to facilitate analysis of alternative splicing from
+RNA-SEQ data.  Drawing from multiple published and novel analysis methods,
+Spanky compiles quantitative and qualitative information about junction
+alignments and splicing events.  The basic functions of Spanky are to assess
+confidence in junction alignments, and to quantify and compare splicing events.
+
+
+Getting started
+===============
+
+Prerequisites
+---------------
+
+Spanky requires the following python packages (Python will attempt to install them for you):
+	pyfasta
+	pysam
+	numpy
+	Biopython
+	scikits.statsmodels
+	fisher
+
+Other programs:
+Required for all functions:
+	samtools	http://samtools.sourceforge.net/
+	Cufflinks	(Spanky uses the gtf_to_sam utility to create a sam representation of a gtf reference)  http://cufflinks.cbcb.umd.edu
+Required for splicing analysis:
+AStalavista (or a precomputed splicing event file) http://genome.crg.es/astalavista/
+
+Installation
+---------------
+Decompress the program files spanky.0.1.2.tar.gz
+Then use the python install process:
+	sudo python setup.py install
+
+Example data is located here:
+ftp://helix.nih.gov/pub/sturgill/testdata.tar.gz
+
+
+Questions
+---------------
+Contact Dave Sturgill
+dave.sturgill@gmail.com
