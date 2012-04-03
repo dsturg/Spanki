@@ -21,21 +21,23 @@ def gtf_to_attributes_dict(infn):
 		line = line.rstrip()
 		linedict = {}
 		values = line.split("\t")
-		if (values[2] == "exon"):
-			#print line
-			attributes = values[8].split(";")
-			del attributes[-1]
-			attributes = [x.strip() for x in attributes]
-			for attribute in attributes:
-				attr = attribute.strip().split(" ")
-				linedict[attr[0]] = attr[1].strip("\"")
-			try:
-				attrdict[linedict['transcript_id']]['gene_id'] = linedict['gene_id']
-				attrdict[linedict['transcript_id']]['gene_name'] = linedict['gene_name']
-			except KeyError():
-				attrdict[linedict['transcript_id']]['gene_id'] = ""
-				attrdict[linedict['transcript_id']]['gene_name'] = ""
-				#print "Added to dict for ", linedict['transcript_id'], linedict['gene_id']
+		if len(values) > 1:
+			if (values[2] == "exon"):
+				#print line
+				attributes = values[8].split(";")
+				del attributes[-1]
+				attributes = [x.strip() for x in attributes]
+				for attribute in attributes:
+					attr = attribute.strip().split(" ")
+					linedict[attr[0]] = attr[1].strip("\"")
+				try:
+					attrdict[linedict['transcript_id']]['gene_id'] = linedict['gene_id']
+				except:
+					attrdict[linedict['transcript_id']]['gene_id'] = ""
+				try:
+					attrdict[linedict['transcript_id']]['gene_name'] = linedict['gene_name']
+				except:
+					attrdict[linedict['transcript_id']]['gene_name'] = "None"
 	infile.close()
 	return attrdict
 
