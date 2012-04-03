@@ -261,7 +261,11 @@ def parse_aligns_detailed(samfile):
 					else: 
 						STAB[juncid][offset] = 1
 	
-					donid, accid = juncid.split("_")
+					mysplit = juncid.split(":")
+					coords = mysplit[1]
+					donor, accid = coords.split("_")
+					donid = chr + ":" + donor
+					#donid, accid = juncid.split("_")
 					if NEWDTAB[donid][accid]:
 						NEWDTAB[donid][accid] += 1
 					else:
