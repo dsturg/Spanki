@@ -57,14 +57,14 @@ def prep_ref(gtffile,fastafile,output_dir):
 	try:
 		subprocess.call(["gtf_to_sam", gtffile, tmp_dir + "/ref.sam"])
 	except:
-		print "Error:  Can't call 'gtf_to_sam.'  
+		print "Error:  Can't call 'gtf_to_sam.'"  
 		print "Please check that Cufflinks is installed and in your path."
 		quit()
 
 	try:
 		subprocess.call(["samtools", "faidx", fastafile])
 	except:
-		print "Error:  Can't call samtools. "
+		print "Error:  Can't call samtools"
 		print "Please check that samtools is installed"
 		quit()
 
