@@ -54,9 +54,20 @@ def prep_ref(gtffile,fastafile,output_dir):
 	print "[**   Setup   **] Making transcript to attribute lookup"
 	txdict = gtf_to_attributes_dict(gtffile)
 	print "[**   Setup   **] Convert GTF reference to SAM"
-	subprocess.call(["gtf_to_sam", gtffile, tmp_dir + "/ref.sam"])
-	#subprocess.call(["gtf_to_sam", gtffile, tmp_dir."/ref.sam"])
-	subprocess.call(["samtools", "faidx", fastafile])
+	try:
+		subprocess.call(["gtf_to_sam", gtffile, tmp_dir + "/ref.sam"])
+	except:
+		print "Error:  Can't call 'gtf_to_sam.'  
+		print "Please check that Cufflinks is installed and in your path."
+		quit()
+
+	try:
+		subprocess.call(["samtools", "faidx", fastafile])
+	except:
+		print "Error:  Can't call samtools. "
+		print "Please check that samtools is installed"
+		quit()
+
 	fastidx = fastafile + ".fai"
 	print "[**   Setup   **] Convert SAM reference to BAM"
 	subprocess.call(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"])
