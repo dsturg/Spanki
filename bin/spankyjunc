@@ -1108,7 +1108,11 @@ def main():
 					print "removed juncid:", juncid
 					myjuncs.remove(juncid)
 					# Remove the dictionary entry from NEWDTAB
-					donid, accid = juncid.split("_")
+					mysplit = juncid.split(":")
+					coords = mysplit[1]
+					donor, accid = coords.split("_")
+					donid = chr + ":" + donor
+					#donid, accid = juncid.split("_")
 					NEWDTAB[donid][accid] = 0
 					print >> rej_juncs_out, juncid, intronsize, INTSEQ[juncid]['dinucleotide'], ANNOSTATUS[juncid], GENEASSIGN[juncid]['geneassign']
 	else:
