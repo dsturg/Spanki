@@ -459,6 +459,8 @@ def alignment_entropies(STAB,JTAB):
 
 def hamming_distance(s1, s2):
 	assert len(s1) == len(s2)
+	s1 = s1.upper()
+	s2 = s2.upper()
 	return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
 
 def subdivideCigar(cigar):
@@ -681,6 +683,8 @@ def intron_sequence(myjuncs,f):
 			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
 			donormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
 			acceptormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+			acceptormotif = acceptormotif.upper()
+			donormotif = donormotif.upper()
 			dastring = donormotif + '..' + acceptormotif
 		else:
 			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
@@ -689,6 +693,8 @@ def intron_sequence(myjuncs,f):
 			threeprimeflank = threeprimeflank.reverse_complement()
 			acceptormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
 			donormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+			acceptormotif = acceptormotif.upper()
+			donormotif = donormotif.upper()
 			dastring = donormotif.reverse_complement() + '..' + acceptormotif.reverse_complement()
 		INTSEQ[juncid]['dinucleotide'] = dastring
 		INTSEQ[juncid]['flank5'] = fiveprimeflank
@@ -1199,10 +1205,12 @@ def main():
 
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 	if (method == "eval"):
-		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','MAXmmes','MAXminanc']
+		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc']
 		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
 			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
 			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
@@ -1217,10 +1225,12 @@ def main():
 			RESULTS[juncid]['MAXmmes'] = MMES[juncid]['MAXmmes']
 			RESULTS[juncid]['MAXminanc'] = MMES[juncid]['MAXminanc']
 	elif (method == "quant"):
-		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','lirt','rirt','irt','datrans','dinucleotide','dncov','ancov']
+		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','lirt','rirt','irt','datrans','dinucleotide','intron_size','dncov','ancov']
 		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
 			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
 			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
@@ -1233,10 +1243,12 @@ def main():
 			RESULTS[juncid]['dncov'] = NEIGHBORCOV[juncid]['dncov']
 			RESULTS[juncid]['ancov'] = NEIGHBORCOV[juncid]['ancov']
 	elif (method == "all"):
-		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
+		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
 		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
 			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
 			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
