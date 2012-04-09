@@ -161,6 +161,8 @@ class Junctionid:
 		self.end = end
 		self.strand = strand
 		self.intronsize = end - start
+		self.accid = str(coords.split('_')[0])
+		self.donid = chr + ":" + str(end)
 
 def parse_aligns_detailed(samfile):
 	"""
@@ -326,7 +328,7 @@ def txlistToGeneList(mylist,lookup):
 	x.sort()
 	return x
 
-def donor_acceptor_transition(NEWDTAB):
+def donor_acceptor_transition(NEWDTAB,myjuncs):
 	"""
 	Gets donor-acceptor transition probabilities 
 	using junction coverage
@@ -340,6 +342,7 @@ def donor_acceptor_transition(NEWDTAB):
 		covbyedge[x] = dcov
 		for y in NEWDTAB[x].keys():
 			jcov = NEWDTAB[x][y]
+			#print "Looking at ", x, "to", y, "with jcov", jcov
 			if covbyedge[y]:
 				covbyedge[y] += jcov
 			else:
@@ -349,12 +352,26 @@ def donor_acceptor_transition(NEWDTAB):
 			except ZeroDivisionError:
 				trans = 0
 			juncid = str(x) + "_" + str(y)
+			if (juncid + ":+") in myjuncs:
+				juncid = juncid + ":+"
+			elif (juncid + ":-") in myjuncs:
+				juncid = juncid + ":-"
+			else:
+				pass
 			DATRANS[juncid]['datrans'] = "%.3f" % trans
 	NEIGHBORCOV = collections.defaultdict(lambda : collections.defaultdict(dict))
 	for x in Ks:
 		for y in NEWDTAB[x].keys():
 			juncid = str(x) + "_" + str(y)
+			if (juncid + ":+") in myjuncs:
+				juncid = juncid + ":+"
+			elif (juncid + ":-") in myjuncs:
+				juncid = juncid + ":-"
+			else:
+				pass
+			#print "Looking at neightbor coverage"
 			jcov = NEWDTAB[x][y]
+			#print "covbyedge", covbyedge[x]
 			NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
 			NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
 	return DATRANS, NEIGHBORCOV
@@ -856,7 +873,7 @@ def parse_options():
 	parser = argparse.ArgumentParser(description='Parse a bam file.')
 	parser.add_argument('-i', help='bam file name', action="store", dest="i")
 	parser.add_argument('-g', help='referenceGTF', action="store", dest="g")
-	parser.add_argument('-m', help='What method to run', action="store", dest="m", default="none")
+	parser.add_argument('-m', help='What method to run', action="store", dest="m", default="all")
 	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
 	parser.add_argument('-o', help='outfile', action="store", dest="o", default="./junctions_out/")
 	parser.add_argument('-filter', help='T/F Filter junctions', action="store", dest="filter", default="T")
@@ -1091,30 +1108,31 @@ def main():
  	# then they can't be included in neighbor coverages
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 	if (filter == "T"):
 		rej_juncs_out_name = output_dir + "/rejected_juncs.txt"
 		rej_juncs_out = open(rej_juncs_out_name, "w")
 		print >> rej_juncs_out, "juncid\tintron_size\tdinucleotide\tannostatus\tgeneassign"
 		valid_motifs = ["GT..AG","GC..AG","AT..AC"]
 		for juncid in myjuncs:
-			coords = juncid.split(':')[1]
-			start = int(coords.split('_')[0]) - 1
-			end = int(coords.split('_')[1])
-			intronsize = abs(start - end)
+			j1 = Junctionid(juncid)
+			#coords = juncid.split(':')[1]		
+			#start = int(coords.split('_')[0]) - 1
+			#end = int(coords.split('_')[1])
+			#intronsize = abs(start - end)
 			if ANNOSTATUS[juncid] != "an":
-				if (intronsize < 50000) and (str(INTSEQ[juncid]['dinucleotide']) in valid_motifs) and (intronsize > 42) and (GENEASSIGN[juncid]['geneassign'] != "ambiguous"):
+				if (j1.intronsize < 50000) and (str(INTSEQ[juncid]['dinucleotide']) in valid_motifs) and (j1.intronsize > 42) and (GENEASSIGN[juncid]['geneassign'] != "ambiguous"):
 					pass
 				else:
-					print "removed juncid:", juncid
+					#print "removed juncid:", juncid
 					myjuncs.remove(juncid)
 					# Remove the dictionary entry from NEWDTAB
-					mysplit = juncid.split(":")
-					coords = mysplit[1]
-					donor, accid = coords.split("_")
-					donid = chr + ":" + donor
+					#mysplit = juncid.split(":")
+					#coords = mysplit[1]
 					#donid, accid = juncid.split("_")
-					NEWDTAB[donid][accid] = 0
-					print >> rej_juncs_out, juncid, intronsize, INTSEQ[juncid]['dinucleotide'], ANNOSTATUS[juncid], GENEASSIGN[juncid]['geneassign']
+					NEWDTAB[j1.donid][j1.accid] = 0
+					print >> rej_juncs_out, juncid, j1.intronsize, INTSEQ[juncid]['dinucleotide'], ANNOSTATUS[juncid], GENEASSIGN[juncid]['geneassign']
 	else:
 		print >> sys.stderr, "[%s] Stringent junction filter not applied" % (spanky_utils.timestamp())
 
@@ -1125,7 +1143,8 @@ def main():
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# The below works, but I should simplify
 		print >> sys.stderr, "[%s] Getting D-A transition probs and neighbor coverage" % (spanky_utils.timestamp())
-		DATRANS,NEIGHBORCOV = donor_acceptor_transition(NEWDTAB)
+		DATRANS,NEIGHBORCOV = donor_acceptor_transition(NEWDTAB,myjuncs)
+		
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# IRT
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
