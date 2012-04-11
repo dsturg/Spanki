@@ -5,6 +5,7 @@ import collections
 import subprocess
 import sys
 import os
+import re
 from datetime import datetime, date
 
 def timestamp():
@@ -70,7 +71,22 @@ def prep_ref(gtffile,fastafile,output_dir):
 
 	fastidx = fastafile + ".fai"
 	print "[**   Setup   **] Convert SAM reference to BAM"
-	subprocess.call(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"])
+	#subprocess.check_output(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"])
+	
+	p = subprocess.Popen(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"], stderr=subprocess.PIPE)
+	out, err = p.communicate()
+	
+	pattern = re.compile('recognized')
+	errlines = err.split("\n")
+
+	for line in errlines:
+		m = pattern.search(line)	
+		if m:
+			print "ERROR: GTF does not match reference fasta"
+			print "\tAs reported by samtools:"
+			print "\t", line
+			quit()
+	
 	subprocess.call(["samtools","sort",tmp_dir + "/headered.bam",tmp_dir + "/ref"])
 	subprocess.call(["samtools", "index", tmp_dir + "/ref.bam"])
 	subprocess.call(["rm", tmp_dir + "/headered.bam"])

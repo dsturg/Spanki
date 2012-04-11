@@ -940,6 +940,8 @@ def main():
 	print >> log_out, "Fastafile:", fastafile
 	print >> log_out, "Reference GTF file:", gtffile
 	print >> log_out, "Alignments:", bamfile
+
+
 	
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Intializing the reference
@@ -949,8 +951,6 @@ def main():
   	## Note that you now have a reference called ref.bam, and a lookup dict
 	tmp_dir = output_dir + "/tmp/"
  	reffile = tmp_dir + "/ref.bam"
-
-
 
 	################################
 	################################
@@ -969,6 +969,8 @@ def main():
 	# Opening fasta filehandle
 	print >> sys.stderr, "[%s] Opening fasta file" % (spanky_utils.timestamp())
 	f = Fasta(fastafile)
+	fastachr = set(sorted(f.keys()))
+
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Loading read alignments
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -981,6 +983,17 @@ def main():
 	# Parse the bam file
 	## Get a table of junctions, table of donors etc.
 	bamfh = pysam.Samfile( bamfile, "rb" )
+	bamchr = set(bamfh.references)
+	bam_not_fasta = bamchr.difference(fastachr)
+	fasta_not_bam = fastachr.difference(bamchr)
+	if len(bam_not_fasta) > 0:
+		print >> sys.stderr, "[%s] ERROR: Chromosomes in bam file header missing from fasta reference:" % (spanky_utils.timestamp()) 
+		print >> sys.stderr, ','.join(bam_not_fasta)
+		quit()
+	if len(fasta_not_bam) > 0:
+		print >> sys.stderr, "[%s] Warning: Chromosomes in fasta ref that have no alignments in bam:" % (spanky_utils.timestamp()) 
+		print >> sys.stderr, ','.join(fasta_not_bam)
+		
 	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
 	
 

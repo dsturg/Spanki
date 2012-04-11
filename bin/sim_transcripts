@@ -540,11 +540,12 @@ def tab_to_dict(tabfile):
 			keys = line
 		else: 
 			values = line
-			linedict = dict(zip(keys, values))
-			id = str(values[0])
-			mytab[id] = linedict 
-			#print "adding to ",linedict['juncid']
-			#print linedict
+			try:
+				linedict = dict(zip(keys, values))
+				id = str(values[0])
+				mytab[id] = linedict 
+			except:
+				pass
 		linecount += 1
 	return mytab
 
@@ -918,6 +919,7 @@ def main():
 				numreads = int(covtimeslength / mybp)
 			else:
 		 		print "Don't recognize txtab headings", txtab[i].keys()
+		 		quit("This file should specify coverage 'cov' or reads per kilobase 'rpk'")
 		else:
 			quit("Can't figure out how many reads to generate")
 		
