@@ -24,6 +24,25 @@ import spanky.spanky_parse_utils as spanky_parse_utils
 import spanky.spanky_utils as spanky_utils
 
 
+class Junctionid:
+	"""
+	Base class for a junction, from juncid
+	Expects junction id
+	"""
+	def __init__(self, juncid):
+		chr = juncid.split(':')[0]
+		coords = juncid.split(':')[1]
+		strand = juncid.split(':')[2]
+		start = int(coords.split('_')[0]) - 1
+		end = int(coords.split('_')[1])
+		self.chr = chr
+		self.start = start
+		self.end = end
+		self.strand = strand.strip()
+		self.intronsize = end - start
+		self.accid = str(coords.split('_')[0])
+		self.donid = chr + ":" + str(end)
+
 def tab_to_dict(tabfile):
 	"""
 	Generic make a dict from a table
@@ -108,6 +127,9 @@ def main():
 	p_dncov = []
 	p_ancov = []
 	p_tncov = []
+
+	p_donor = []
+	p_acceptor = []
 	
 	keys1 = tab1.keys()
 	keys2 = tab2.keys()
@@ -117,6 +139,21 @@ def main():
 	counter = len(keyoverlap)
 
 	for x in keyoverlap:
+		j1 = Junctionid(x)
+		strand = j1.strand
+		if (strand in '+'):
+			#print x, "plus strand", j1.strand, len(strand)
+			donor_irt1 = int(tab1[x]['lirt'])
+			donor_irt2 = int(tab2[x]['lirt'])
+			acc_irt1 = int(tab1[x]['rirt'])
+			acc_irt2 = int(tab2[x]['rirt'])
+		else:
+			#print x, "minus strand", j1.strand, len(strand)
+			donor_irt1 = int(tab1[x]['rirt'])
+			donor_irt2 = int(tab2[x]['rirt'])
+			acc_irt1 = int(tab1[x]['lirt'])
+			acc_irt2 = int(tab2[x]['lirt'])
+	
 		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['irt']) , int(tab2[x]['cov']), int(tab2[x]['irt']))
 		myresults[x]['pval_irt'] = p.two_tail
 		p_irt.append(p.two_tail)
@@ -129,10 +166,26 @@ def main():
 		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']) + int(tab2[x]['ancov']))
 		myresults[x]['pval_tncov'] = p.two_tail
 		p_tncov.append(p.two_tail)
-		
+	
+		'''
+		Adding tests for donor and acceptor
+		neighbor coverage plus irt
+		''' 
+		p = pvalue(int(tab1[x]['cov']), donor_irt1 , int(tab2[x]['cov']), donor_irt2)
+		myresults[x]['pval_donor'] = p.two_tail
+		p_donor.append(p.two_tail)
+		p = pvalue(int(tab1[x]['cov']), acc_irt1 , int(tab2[x]['cov']), acc_irt2)
+		myresults[x]['pval_acceptor'] = p.two_tail
+		p_acceptor.append(p.two_tail)
+
+	
 		myresults[x]['geneassign'] = tab1[x]['geneassign']
 		myresults[x]['cov1'] = tab1[x]['cov']
 		myresults[x]['cov2'] = tab2[x]['cov']
+		myresults[x]['lirt1'] = tab1[x]['lirt']
+		myresults[x]['lirt2'] = tab2[x]['lirt']
+		myresults[x]['rirt1'] = tab1[x]['rirt']
+		myresults[x]['rirt2'] = tab2[x]['rirt']
 		myresults[x]['irt1'] = tab1[x]['irt']
 		myresults[x]['irt2'] = tab2[x]['irt']
 		myresults[x]['dncov1'] = tab1[x]['dncov']
@@ -148,12 +201,17 @@ def main():
 	bh_pvals_dncov = fdrcorrection0(p_dncov, alpha=alpha, method='indep')[1]
 	bh_pvals_ancov = fdrcorrection0(p_ancov, alpha=alpha, method='indep')[1]
 	bh_pvals_tncov = fdrcorrection0(p_tncov, alpha=alpha, method='indep')[1]
+	bh_pvals_donor = fdrcorrection0(p_donor, alpha=alpha, method='indep')[1]
+	bh_pvals_acceptor = fdrcorrection0(p_acceptor, alpha=alpha, method='indep')[1]
+
 	
 	qconv_irt = dict(zip(p_irt,bh_pvals_irt))
 	qconv_dncov = dict(zip(p_dncov,bh_pvals_dncov))
 	qconv_ancov = dict(zip(p_ancov,bh_pvals_ancov))
 	qconv_tncov = dict(zip(p_tncov,bh_pvals_tncov))
-	
+	qconv_donor = dict(zip(p_donor,bh_pvals_donor))
+	qconv_acceptor = dict(zip(p_acceptor,bh_pvals_acceptor))
+
 	#for q in bh_pvals:
 		#if (q < 0.05):  
 			#print >> comp_out, "Q:", q
@@ -164,11 +222,13 @@ def main():
 		myresults[x]['qval_ancov'] = qconv_ancov[myresults[x]['pval_ancov']]
 		myresults[x]['qval_dncov'] = qconv_dncov[myresults[x]['pval_dncov']]
 		myresults[x]['qval_tncov'] = qconv_tncov[myresults[x]['pval_tncov']]
-		allp = [myresults[x]['pval_irt'],myresults[x]['pval_ancov'],myresults[x]['pval_dncov'],myresults[x]['pval_tncov']]
+		myresults[x]['qval_donor'] = qconv_donor[myresults[x]['pval_donor']]
+		myresults[x]['qval_acceptor'] = qconv_acceptor[myresults[x]['pval_acceptor']]
+		allp = [myresults[x]['pval_irt'],myresults[x]['pval_ancov'],myresults[x]['pval_dncov'],myresults[x]['pval_tncov'],myresults[x]['qval_donor'],myresults[x]['qval_acceptor']]
 		myresults[x]['minp'] = min(allp)
 
 	fieldorder = ['geneassign','cov1','irt1','dncov1','ancov1','cov2','irt2','dncov2','ancov2',
-	'pval_irt','qval_irt','pval_dncov','qval_dncov','pval_ancov','qval_ancov','pval_tncov','qval_tncov','minp']
+	'pval_irt','qval_irt','pval_dncov','qval_dncov','pval_ancov','qval_ancov','pval_tncov','qval_tncov','pval_donor','qval_donor','pval_acceptor','qval_acceptor','minp']
 
 	sortfield = 'minp'
 	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder)

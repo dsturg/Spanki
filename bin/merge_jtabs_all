@@ -57,6 +57,8 @@ def main():
 					combined[juncid]['numsamps'] += 1
 					combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] )
 					try:
+						combined[juncid]['lirt'] = int(JTAB[juncid]['lirt']) + int(combined[juncid]['lirt'])
+						combined[juncid]['rirt'] = int(JTAB[juncid]['rirt']) + int(combined[juncid]['rirt'])
 						combined[juncid]['irt'] = int(JTAB[juncid]['irt']) + int(combined[juncid]['irt'])
 						combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )
 						combined[juncid]['ancov'] = int(JTAB[juncid]['ancov']) + int(combined[juncid]['ancov'])
@@ -71,9 +73,9 @@ def main():
 					combined[juncid]['numsamps'] = 1
 
 	if (irtinclude == "T"):
-		print "juncid\tgeneassign\tcov\tirt\tdncov\tancov\tnumsamps"			
+		print "juncid\tgeneassign\tcov\tlirt\trirt\tirt\tdncov\tancov\tnumsamps"			
 		for juncid in combined.keys():
-			print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['irt'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
+			print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['lirt'], '\t', combined[juncid]['rirt'], '\t', combined[juncid]['irt'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
 	else:
 		print "juncid\tgeneassign\tcov\tnumsamps"			
 		for juncid in combined.keys():

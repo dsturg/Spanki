@@ -159,7 +159,7 @@ class Junctionid:
 		self.chr = chr
 		self.start = start
 		self.end = end
-		self.strand = strand
+		self.strand = strand.strip()
 		self.intronsize = end - start
 		self.accid = str(coords.split('_')[0])
 		self.donid = chr + ":" + str(end)
