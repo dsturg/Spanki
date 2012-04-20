@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
         name='spanky',
-        version='0.1.2',
+        version='0.1.3',
         #py_modules=['modules/spanky_parse_utils,modules/spanky_utils'],
         packages = ['spanky'],
         package_data={'spanky': ['data/*.txt']},
