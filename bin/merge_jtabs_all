@@ -57,7 +57,50 @@ def main():
 					combined[juncid]['numsamps'] += 1
 					combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] )
 					try:
-						combined[juncid]['lirt'] = int(JTAB[juncid]['lirt']) + int(combined[juncid]['lirt'])
+						try:
+							combined[juncid]['lirt'] / 1
+						except:
+							combined[juncid]['lirt'] = 0
+						try:
+							combined[juncid]['rirt'] / 1
+						except:
+							combined[juncid]['rirt'] = 0
+						try:
+							combined[juncid]['irt'] / 1
+						except:
+							combined[juncid]['irt'] = 0
+						try:
+							combined[juncid]['ancov'] / 1
+						except:
+							combined[juncid]['ancov'] = 0
+						try:
+							combined[juncid]['dncov'] / 1
+						except:
+							combined[juncid]['dncov'] = 0
+							
+						try:
+							JTAB[juncid]['lirt'] / 1
+						except:
+							JTAB[juncid]['lirt'] = 0
+						try:
+							JTAB[juncid]['rirt'] / 1
+						except:
+							JTAB[juncid]['rirt'] = 0
+						try:
+							JTAB[juncid]['irt'] / 1
+						except:
+							JTAB[juncid]['irt'] = 0
+						try:
+							JTAB[juncid]['ancov'] / 1
+						except:
+							JTAB[juncid]['ancov'] = 0
+						try:
+							JTAB[juncid]['dncov'] / 1
+						except:
+							JTAB[juncid]['dncov'] = 0
+						#print combined[juncid]
+						#print JTAB[juncid]
+						combined[juncid]['lirt'] = int(JTAB[juncid]['lirt']) + int(combined[juncid]['lirt'])							
 						combined[juncid]['rirt'] = int(JTAB[juncid]['rirt']) + int(combined[juncid]['rirt'])
 						combined[juncid]['irt'] = int(JTAB[juncid]['irt']) + int(combined[juncid]['irt'])
 						combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )

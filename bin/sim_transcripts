@@ -561,6 +561,7 @@ def parse_options():
 	parser.add_argument('-s', help='start selection mode', action="store", dest="s", default="random")
 	parser.add_argument('-m', help='model', action="store", dest="m", default="Default")
 	parser.add_argument('-bp', help='model', action="store", type=int, dest="bp", default=76)
+	parser.add_argument('-ir', help='intron_retention', action="store", type=float, dest="ir", default=0.2)
 	args = parser.parse_args()
 	return args
 
@@ -577,6 +578,7 @@ txinput = args.t
 startmodel = args.s
 model = args.m
 mybp = args.bp
+myir = args.ir
 # Prepare output directory
 output_dir = outfile
 spanky_utils.prepare_output_dir(output_dir)
@@ -738,8 +740,8 @@ def main():
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	#mycov = cov
-	intron_retention = 0.20
-
+	#intron_retention = 0.20
+	intron_retention = myir
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# Models
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
