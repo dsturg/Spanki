@@ -479,9 +479,11 @@ def get_coverage(eventdict):
 		inc = sum(join1COV)
 		exc = sum(join2COV)
 		
-		if (eventdict[eventid]['eventcode'] == "AltFE") or (eventdict[eventid]['eventcode'] == "AltFE"):
+		if (eventdict[eventid]['eventcode'] == "AltFE") or (eventdict[eventid]['eventcode'] == "AltLE"):
 			inc_adj = join1COV[0]
 			exc_adj = join2COV[0]
+			sites1 = 1
+			sites2 = 1
 		else:
 			inc_adj = inc
 			exc_adj = exc
@@ -512,7 +514,8 @@ def get_coverage(eventdict):
 		except ZeroDivisionError:
 			psi_adj = 0
 
-
+		eventdict[eventid]['inc_sites'] = sites1 
+		eventdict[eventid]['exc_sites'] = sites2 
 		eventdict[eventid]['psi'] = "%.3f" % psi
 		eventdict[eventid]['psi_adj'] = "%.3f" % psi_adj
 		
@@ -589,13 +592,16 @@ spanky_utils.prepare_output_dir(output_dir)
 asta_counts_out_name = output_dir + "/asta.out"
 asta_counts_out = open(asta_counts_out_name, "w")
 
+unassayable_events_counts_out_name = output_dir + "/unassayable_events.out"
+unassayable_events_out = open(unassayable_events_counts_out_name, "w")
+
 asta_summary_out_name = output_dir + "/event_summary.out"
 asta_summary_out = open(asta_summary_out_name, "w")
     
 def main():
 	
 	########################################
-	# Setting up and cjecking
+	# Setting up and checking
 	########################################
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Checking that required files are present
@@ -676,6 +682,7 @@ def main():
 	
 	# Try iterating over lines, calling sub many times
 	eventdict = collections.defaultdict(lambda : collections.defaultdict(dict))	
+	unassayable_events = collections.defaultdict(lambda : collections.defaultdict(dict))	
 	counter = 0
 	excluded = 0
 	for line in astalines:
@@ -683,7 +690,15 @@ def main():
 		if linedict:
 			counter += 1		
 			eventid = 'ASTA' + "%05d" % (counter,)
-			eventdict[eventid] = linedict
+			#print line
+			joins = []
+			joins.extend(linedict['joins2'])
+			joins.extend(linedict['joins1'])
+			#print joins
+			if 'none' in joins:
+				unassayable_events[eventid] = linedict
+			else:
+				eventdict[eventid] = linedict
 		else:
 			excluded += 1
 	print "Processed", counter + excluded, "events"
@@ -790,11 +805,14 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id',
-	'joinstring','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
+	'joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
 	RESULTS = eventdict
-	
 	print_output_table(RESULTS,asta_counts_out,fieldorder)
 
+	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id',
+	'joinstring']
+	RESULTS = unassayable_events
+	print_output_table(RESULTS,unassayable_events_out,fieldorder)
 			
 if __name__ == "__main__":
     sys.exit(main())

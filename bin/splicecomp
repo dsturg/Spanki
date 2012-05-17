@@ -113,6 +113,8 @@ def main():
 		myresults[event]['eventcode'] = tab1[event]['eventcode']
 		myresults[event]['structure'] = tab1[event]['structure']
 		myresults[event]['transcript_id'] = tab1[event]['transcript_id']
+		myresults[event]['inc_sites'] = int(tab1[event]['inc_sites'])
+		myresults[event]['exc_sites'] = int(tab1[event]['inc_sites'])
 		myresults[event]['inc1'] = int(tab1[event]['inc'])
 		myresults[event]['exc1'] = int(tab1[event]['exc'])
 		myresults[event]['inc1_adj'] = int(tab1[event]['inc_adj'])
@@ -155,7 +157,7 @@ def main():
 		myresults[event]['qval_adj'] = qadjconv[myresults[event]['pval_adj']]
 
 	#printDict(myresults,comp_out)
-	fieldorder = ['gnames','gids','transcript_id','eventcode','structure','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval',
+	fieldorder = ['gnames','gids','transcript_id','eventcode','structure','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval',
 	'inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj','fpkm_proportion1','fpkm_proportion2']
 	sortfield = 'pval'
 	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder)
