@@ -40,9 +40,17 @@ class Junctionid:
 		self.end = end
 		self.strand = strand.strip()
 		self.intronsize = end - start
-		self.accid = str(coords.split('_')[0])
-		self.donid = chr + ":" + str(end)
-
+		#self.accid = str(coords.split('_')[0])
+		if self.strand == "+":
+			self.donid = chr + ":" + str(start)
+			self.accid = chr + ":" + str(end)
+		elif self.strand == "-":
+			self.accid = chr + ":" + str(start)
+			self.donid = chr + ":" + str(end)
+		else:
+			print "strand character is", self.strand
+			quit("Don't recognize strand")
+			
 class JuncBasic:
 	"""
 	Base class for a junction
@@ -302,6 +310,80 @@ def intron_readthrough(myjuncs,samfile):
 		IRT[juncid]['irt'] = lirt + rirt
 	return IRT
 
+def donor_acceptor_transition(NEWDTAB,myjuncs):
+	"""
+	Gets donor-acceptor transition probabilities 
+	using junction coverage
+	"""
+	DATRANS = collections.defaultdict(lambda : collections.defaultdict(dict))
+	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+	joinsbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+	Ks = NEWDTAB.keys()
+	Ks.sort()
+	'''
+	First calculate coverage by edge (donor or acceptor)
+	Remember to check if each join has been filtered out
+	'''
+	for x in Ks:
+		#dcov = sum(NEWDTAB[x].values())
+		#covbyedge[x] = dcov
+		covbyedge[x] = 0
+		joinsbyedge[x] = 0
+		for y in NEWDTAB[x].keys():
+			'''
+			Get juncid
+			'''
+			juncid = str(x) + "_" + str(y)
+			if (juncid + ":+") in myjuncs:
+				juncid = juncid + ":+"
+			elif (juncid + ":-") in myjuncs:
+				juncid = juncid + ":-"
+			else:
+				pass
+			''' 
+			Check to see if it was filtered
+			'''
+			if juncid in myjuncs:
+				covbyedge[x] += NEWDTAB[x][y]
+				joinsbyedge[x] += 1
+				#jcov = NEWDTAB[x][y]
+				#print "Looking at ", x, "to", y, "with jcov", jcov
+				if covbyedge[y]:
+					covbyedge[y] += NEWDTAB[x][y]
+					joinsbyedge[y] += 1
+				else:
+					covbyedge[y] = NEWDTAB[x][y]
+					joinsbyedge[y] = 1
+	'''
+	Now instantiate hash of neighbor coverages keyed by juncid
+	Also do DATRANS
+	'''
+	NEIGHBORCOV = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for x in Ks:
+		for y in NEWDTAB[x].keys():
+			juncid = str(x) + "_" + str(y)
+			if (juncid + ":+") in myjuncs:
+				juncid = juncid + ":+"
+			elif (juncid + ":-") in myjuncs:
+				juncid = juncid + ":-"
+			else:
+				pass
+
+			if (juncid in myjuncs):
+				#print "Looking at neighbor coverage"
+				jcov = NEWDTAB[x][y]
+				#print "covbyedge", covbyedge[x]
+				try:
+					trans = jcov/covbyedge[x]
+				except ZeroDivisionError:
+					trans = 0
+				DATRANS[juncid]['datrans'] = "%.3f" % trans
+				NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
+				NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
+				NEIGHBORCOV[juncid]['dnjoins'] = joinsbyedge[x]
+				NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[y]
+	return DATRANS, NEIGHBORCOV, joinsbyedge
+
 ################################
 ################################
 ################################
@@ -362,6 +444,28 @@ def main():
 
 	for x in IRT.keys():
 		print x, IRT[x]
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Making a covbyedge hash from input jtab
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+
+	for juncid in keys1:
+		j1 = Junctionid(juncid)
+		donid = j1.donid
+		accid = j1.accid
+		if covbyedge[donid]:
+			covbyedge[donid] += int(tab1[juncid]['cov'])
+		else:
+			covbyedge[donid] = int(tab1[juncid]['cov'])
+		if covbyedge[accid]:
+			covbyedge[accid] += int(tab1[juncid]['cov'])
+		else:
+			covbyedge[accid] = int(tab1[juncid]['cov'])
+
+	for edgeid in covbyedge.keys():
+		print edgeid, covbyedge[edgeid]
+		
 
 	quit("done")
 
