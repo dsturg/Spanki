@@ -1,0 +1,392 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+quickjunc
+
+This takes BAM files as input, and calculates coverage for junctions.
+Calculates total coverage and filtered coverage where
+minimum anchor size >= X
+
+The version quickjunc_from_junclist allows the input of a junction list to quantify from
+
+"""
+from __future__ import division 
+
+import re
+import sys
+import argparse
+import pysam
+import csv
+import math
+import os
+import collections
+
+from datetime import datetime, date
+import spanky.spanky_utils as spanky_utils
+
+class Junctionid:
+	"""
+	Base class for a junction, from juncid
+	Expects junction id
+	"""
+	def __init__(self, juncid):
+		chr = juncid.split(':')[0]
+		coords = juncid.split(':')[1]
+		strand = juncid.split(':')[2]
+		start = int(coords.split('_')[0]) - 1
+		end = int(coords.split('_')[1])
+		self.chr = chr
+		self.start = start
+		self.end = end
+		self.strand = strand.strip()
+		self.intronsize = end - start
+		self.accid = str(coords.split('_')[0])
+		self.donid = chr + ":" + str(end)
+
+class JuncBasic:
+	"""
+	Base class for a junction
+	Expects SAM input
+	"""
+	def __init__(self, chr, start, cigar, readseq, tags):
+		self.chr = chr
+		self.start = start
+		self.cigar = cigar
+		self.readseq = readseq
+		## anchorsize is the genomic coordinate space (accounting for indels)
+		## The aligned portion may be longer or shorter after indels
+		left_anchorsize = 0
+		left_read_anchor = ""
+		left_genome_aligned = ""
+		right_anchorsize = 0
+		right_read_anchor = ""
+		right_genome_aligned = ""
+		gapsize = 0
+		gap_seen = 0
+		readpos = 0
+		genomepos = self.start
+		for i in self.cigar:
+			if i[0] == 0:
+				if gap_seen < 1:
+					left_anchorsize += i[1]
+					left_read_anchor += self.readseq[readpos:readpos + i[1]]
+					left_genome_aligned += "M" * (i[1] + 1) 
+				else:
+					right_anchorsize += i[1]
+					right_read_anchor += self.readseq[readpos:readpos + i[1]]
+					right_genome_aligned += "M" * (i[1] + 1) 
+				readpos += i[1]
+				genomepos += i[1]
+			elif i[0] == 1:
+				'''
+				If insertion, add to readpos
+				'''
+				readpos += i[1]
+			elif i[0] == 2:
+				'''
+				If deletion, add to anchor size
+				'''
+				if gap_seen < 1:
+					left_anchorsize += i[1]
+				else:
+					right_anchorsize += i[1]
+				genomepos += i[1]
+			elif i[0] == 3:
+				gap_seen += 1
+				gapsize += i[1]
+			else:
+				quit("Don't recognize cigar code")
+
+		junc_left_side = self.start + left_anchorsize + 1
+		junc_right_side = self.start + left_anchorsize + gapsize
+		self.junc_left_side = junc_left_side
+		self.junc_right_side = junc_right_side
+		
+		self.left_genome_aligned = left_genome_aligned
+		self.right_genome_aligned = right_genome_aligned
+		self.left_read_anchor = left_read_anchor
+		self.right_read_anchor = right_read_anchor
+		self.gapsize = gapsize
+
+	
+		""" 
+		Try to get strand from SAM file first
+		If it can't do it, use donor/acceptor motifs
+		If still no, use *
+		"""
+		keys = []
+		values = []
+		for tag in tags:
+			keys.append(tag[0])
+			values.append(tag[1])
+		tagdict = dict(zip(keys, values))
+		try:
+			strand = tagdict['XS']
+			self.strand = strand
+		except:
+			self.strand = "*"
+		
+		self.juncid = self.chr + ":" + str(junc_left_side) + "_" + str(junc_right_side) + ":" + self.strand
+
+def subdivideCigar(cigar):
+	# Get gap indices
+	gaps = []
+	counter = 0
+	for i in cigar:
+		if i[0] == 3: gaps.append(counter)
+		counter += 1	
+	if gaps:
+		"""
+		If there are no gaps(juncs)
+		return empty set
+		"""
+		borders = [0]
+		for i in range(len(gaps[:-1])):
+			borders.append(gaps[i+1])
+			borders.append(gaps[i] + 1)
+		borders.append(len(cigar))
+		
+		# Define subcigar ranges
+		subcigars = []
+		myjuncs = zip(borders[0::2], borders[1::2])
+		for junc in myjuncs:
+			subcigars.append(cigar[junc[0]:junc[1]])
+	else:
+		subcigars = []
+	return subcigars
+
+
+def quickcov(samfile,anchorsize):
+	"""
+	Takes a sam file as input
+	Quickly gets coverage
+	"""
+	JTAB = collections.defaultdict(int)
+	UNFILT_JTAB = collections.defaultdict(int)
+	zero_anchor_warnings = 0
+	for alignedread in samfile:
+		if (len(alignedread.cigar) > 1):
+			# Note that alignedread.is_reverse does not work right to get strand
+			#strand = alignedread.tags[1][1] 
+			mytid = alignedread.tid
+			chr = samfile.getrname(mytid)
+			start = alignedread.pos
+			offset = alignedread.pos
+			cigar = alignedread.cigar
+			readseq = alignedread.query
+
+			subcigars = subdivideCigar(cigar)
+
+			for cigar in subcigars:
+				j1 = JuncBasic(chr,start,cigar,readseq,alignedread.tags)
+				'''
+				For multi-gap cigars, you have to add to the start
+				for the next one
+				'''
+				start += int(len(j1.left_genome_aligned))
+				start += j1.gapsize
+
+				juncid = j1.juncid
+
+				
+				'''
+				Apply a restriction on anchor size
+				to count the junction
+				'''
+				min_anchor = min(len(j1.left_read_anchor),len(j1.right_read_anchor))
+
+				'''
+				Also count unfiltered (no anchor cutoff)
+				'''
+
+				if min_anchor < 1:
+					'''
+					Warn when anchor size is zero
+					For example, cigar 76M54354N
+					These are errors, and shouldn't count toward coverage
+					'''
+					zero_anchor_warnings += 1
+				else: 
+					UNFILT_JTAB[juncid] += 1; # Total junction spanning reads
+
+
+				if min_anchor >= anchorsize:
+				
+					JTAB[juncid] += 1; # Total junction spanning reads
+	
+				else:
+					pass
+
+	if zero_anchor_warnings > 0:
+		print "[ WARNING ] ", zero_anchor_warnings, "alignments with zero anchor coverage excluded"
+	
+	return JTAB,UNFILT_JTAB
+
+def tab_to_dict(tabfile):
+	"""
+	Generic make a dict from a table
+	Assumes first column has key
+	and there are column headers
+	"""
+	mytab = {}
+	lines = csv.reader(open(tabfile, 'rb'), delimiter='\t')
+	linecount = 0
+	for line in lines:
+		if (linecount < 1):
+			"""
+			First line is column header - use as keys
+			"""
+			keys = line
+		else: 
+			values = line
+			linedict = dict(zip(keys, values))
+			id = str(values[0])
+			mytab[id] = linedict 
+			#print "adding to ",linedict['juncid']
+			#print linedict
+		linecount += 1
+	return mytab
+
+def intron_readthrough(myjuncs,samfile):
+	IRT = collections.defaultdict(lambda : collections.defaultdict(dict))
+	overhang = 8
+	'''
+	Get read length from first aligment
+	'''
+	for alignedread in samfile:
+		readlength = alignedread.rlen
+		break
+	for juncid in myjuncs:
+
+		j1 = Junctionid(juncid)
+
+		# Check left side
+		lirt = 0
+		rangestart = j1.start - readlength - overhang
+		rangeend = j1.start - overhang
+		if (rangestart < 0): rangestart = 0
+		# Need this for cases where a junciton is near 
+		# the end of a chromosome
+		
+		
+		# Get all reads in the region where intron read-thru reads
+		# could reside.
+		# Count all reads that start in the correct range and have no gaps.
+		reads = samfile.fetch( j1.chr, rangestart, rangeend )		
+		for read in reads:
+			if (rangeend > read.pos > rangestart): 
+				cigar = read.cigar
+				gaps = 0
+				if len(cigar) > 1:
+					for i in cigar:
+						if i[0] == 3: gaps += 1
+				if gaps < 1: 
+					lirt += 1
+		# Check right side
+		rirt = 0
+		rangestart = j1.end - readlength + overhang
+		rangeend = j1.end - overhang
+		if (rangestart < 0): rangestart = 0
+		reads = samfile.fetch( j1.chr, rangestart, rangeend )
+		for read in reads:
+			if (rangeend > read.pos > rangestart): 
+				cigar = read.cigar
+				gaps = 0
+				if len(cigar) > 1:
+					for i in cigar:
+						if i[0] == 3: gaps += 1
+				if gaps < 1: 
+					rirt += 1
+		IRT[juncid]['lirt'] = lirt
+		IRT[juncid]['rirt'] = rirt
+		IRT[juncid]['irt'] = lirt + rirt
+	return IRT
+
+################################
+################################
+################################
+################################
+################################
+def parse_options():
+	parser = argparse.ArgumentParser(description='Parse a bam file.')
+	parser.add_argument('-i', help='bam file name', action="store", dest="i")
+	parser.add_argument('-a', help='anchor size', action="store", type=int, dest="a", default=8)
+	parser.add_argument('-jlist', help='junctionlist', action="store", dest="jlist")
+	parser.add_argument('-jtab', help='junctiontab', action="store", dest="jtab")
+	args = parser.parse_args()
+	return args
+
+# Initialize parameters
+args = parse_options()
+bamfile = args.i
+anchorsize = args.a
+jlist = args.jlist
+jtab = args.jtab
+
+def main():
+	
+	#~~~~~~~~~~~~~~~~~~~
+	# Load junction from first pass
+	#~~~~~~~~~~~~~~~~~~~
+	tab1 = tab_to_dict(jtab)
+	#~~~~~~~~~~~~~~~~~~~
+	# Load reference junction list
+	#~~~~~~~~~~~~~~~~~~~
+	tab2 = tab_to_dict(jlist)
+
+	# Find the junctions in jlist that are not in jtab
+
+	keys1 = tab1.keys()
+	keys2 = tab2.keys()
+
+	print "Getting juncs in jlist not in jtab"
+	keyoverlap = [x for x in keys2 if x not in keys1]
+	counter = len(keyoverlap)
+
+	myjuncs = keyoverlap
+
+	print "Getting irt for these juncs:"
+	for x in keyoverlap:
+		print x
+	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# IRT
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	bamfh = pysam.Samfile( bamfile, "rb" )
+	#for alignedread in samfile:
+	# Need some kind of iterator to getread length from first alignment in sam
+	print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanky_utils.timestamp())
+	IRT = intron_readthrough(myjuncs,bamfh)
+	bamfh.close()
+	print >> sys.stderr, "[%s] Done getting IRT" % (spanky_utils.timestamp())
+
+	for x in IRT.keys():
+		print x, IRT[x]
+
+	quit("done")
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Parse the read alignments
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Parse the bam file
+	## Get a table of junctions, table of donors etc.
+	bamfh = pysam.Samfile( bamfile, "rb" )
+	#JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
+	JTAB,UNFILT_JTAB = quickcov(bamfh,anchorsize)
+	bamfh.close()
+	myjuncs = JTAB.keys()
+	myjuncs.sort()
+	
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Print junction list to the output directory
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	print "juncid\tunfilt_cov\tcov"
+	for juncid in myjuncs:
+		print juncid, UNFILT_JTAB[juncid], JTAB[juncid]
+
+	
+	
+
+if __name__ == "__main__":
+    sys.exit(main())
+

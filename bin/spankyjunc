@@ -334,23 +334,23 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 	using junction coverage
 	"""
 	DATRANS = collections.defaultdict(lambda : collections.defaultdict(dict))
-	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))	
+	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+	joinsbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
 	Ks = NEWDTAB.keys()
 	Ks.sort()
+	'''
+	First calculate coverage by edge (donor or acceptor)
+	Remember to check if each join has been filtered out
+	'''
 	for x in Ks:
-		dcov = sum(NEWDTAB[x].values())
-		covbyedge[x] = dcov
+		#dcov = sum(NEWDTAB[x].values())
+		#covbyedge[x] = dcov
+		covbyedge[x] = 0
+		joinsbyedge[x] = 0
 		for y in NEWDTAB[x].keys():
-			jcov = NEWDTAB[x][y]
-			#print "Looking at ", x, "to", y, "with jcov", jcov
-			if covbyedge[y]:
-				covbyedge[y] += jcov
-			else:
-				covbyedge[y] = jcov
-			try:
-				trans = jcov/dcov
-			except ZeroDivisionError:
-				trans = 0
+			'''
+			Get juncid
+			'''
 			juncid = str(x) + "_" + str(y)
 			if (juncid + ":+") in myjuncs:
 				juncid = juncid + ":+"
@@ -358,7 +358,24 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 				juncid = juncid + ":-"
 			else:
 				pass
-			DATRANS[juncid]['datrans'] = "%.3f" % trans
+			''' 
+			Check to see if it was filtered
+			'''
+			if juncid in myjuncs:
+				covbyedge[x] += NEWDTAB[x][y]
+				joinsbyedge[x] += 1
+				#jcov = NEWDTAB[x][y]
+				#print "Looking at ", x, "to", y, "with jcov", jcov
+				if covbyedge[y]:
+					covbyedge[y] += NEWDTAB[x][y]
+					joinsbyedge[y] += 1
+				else:
+					covbyedge[y] = NEWDTAB[x][y]
+					joinsbyedge[y] = 1
+	'''
+	Now instantiate hash of neighbor coverages keyed by juncid
+	Also do DATRANS
+	'''
 	NEIGHBORCOV = collections.defaultdict(lambda : collections.defaultdict(dict))
 	for x in Ks:
 		for y in NEWDTAB[x].keys():
@@ -369,12 +386,21 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 				juncid = juncid + ":-"
 			else:
 				pass
-			#print "Looking at neightbor coverage"
-			jcov = NEWDTAB[x][y]
-			#print "covbyedge", covbyedge[x]
-			NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
-			NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
-	return DATRANS, NEIGHBORCOV
+
+			if (juncid in myjuncs):
+				#print "Looking at neighbor coverage"
+				jcov = NEWDTAB[x][y]
+				#print "covbyedge", covbyedge[x]
+				try:
+					trans = jcov/covbyedge[x]
+				except ZeroDivisionError:
+					trans = 0
+				DATRANS[juncid]['datrans'] = "%.3f" % trans
+				NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
+				NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
+				NEIGHBORCOV[juncid]['dnjoins'] = joinsbyedge[x]
+				NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[y]
+	return DATRANS, NEIGHBORCOV, joinsbyedge
 
 	
 def intron_readthrough(myjuncs,samfile):
@@ -908,6 +934,8 @@ juncs_all_out_name = output_dir + "/juncs.all"
 juncs_all_out = open(juncs_all_out_name, "w")
 ann_summary_out_name = output_dir + "/annotation_summary.txt"
 ann_summary = open(ann_summary_out_name, "w")
+donor_out_name = output_dir + "/donors.txt"
+donor_out = open(donor_out_name, "w")
 log_out_name = output_dir + "/logs/log.txt"
 log_out = open(log_out_name, "w")
 	
@@ -1159,7 +1187,7 @@ def main():
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# The below works, but I should simplify
 		print >> sys.stderr, "[%s] Getting D-A transition probs and neighbor coverage" % (spanky_utils.timestamp())
-		DATRANS,NEIGHBORCOV = donor_acceptor_transition(NEWDTAB,myjuncs)
+		DATRANS,NEIGHBORCOV,joinsbyedge = donor_acceptor_transition(NEWDTAB,myjuncs)
 		
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# IRT
@@ -1280,7 +1308,22 @@ def main():
 			RESULTS[juncid]['ancov'] = NEIGHBORCOV[juncid]['ancov']
 			
 	#printDict(RESULTS,juncs_all_out)
+
 	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
+
+					
+	print >> donor_out, "donor\tcoverage\tjoins"
+	Ks = NEWDTAB.keys()
+	Ks.sort()
+	for x in Ks:
+		dcov = 0
+		for y in NEWDTAB[x].keys():
+			juncid = str(x) + "_" + str(y)
+			if ((juncid + ":+") in myjuncs) or ((juncid + ":-") in myjuncs):
+				dcov += NEWDTAB[x][y]
+		if joinsbyedge[x] > 0:
+			print >> donor_out, '\t'.join(map(str,[x,dcov,joinsbyedge[x]]))
+
 	print >> log_out, "[%s] Run completed" % (spanky_utils.timestamp())
 	
 	
