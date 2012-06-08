@@ -947,7 +947,7 @@ def main():
 	if not fastafile:
 		quit("Need to specify a fasta file")
 	if not gtffile:
-		quit("Need to specify a fasta file")
+		quit("Need to specify a gtf file")
 		
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Checking what type of run to do

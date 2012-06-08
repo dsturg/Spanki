@@ -395,6 +395,8 @@ def parse_options():
 	parser.add_argument('-a', help='anchor size', action="store", type=int, dest="a", default=8)
 	parser.add_argument('-jlist', help='junctionlist', action="store", dest="jlist")
 	parser.add_argument('-jtab', help='junctiontab', action="store", dest="jtab")
+	parser.add_argument('-o', help='outfile', action="store", dest="o", default="juncs.txt")
+
 	args = parser.parse_args()
 	return args
 
@@ -404,24 +406,32 @@ bamfile = args.i
 anchorsize = args.a
 jlist = args.jlist
 jtab = args.jtab
+outfile = args.o
+
+#~~~~~~~~~~~~~~~~~~~
+# Prepare output file
+#~~~~~~~~~~~~~~~~~~~
+# Prepare output file names
+juncs_out_name = outfile
+juncs_out = open(juncs_out_name, "w")
 
 def main():
 	
 	#~~~~~~~~~~~~~~~~~~~
 	# Load junction from first pass
 	#~~~~~~~~~~~~~~~~~~~
-	tab1 = tab_to_dict(jtab)
+	jdict = tab_to_dict(jtab)
 	#~~~~~~~~~~~~~~~~~~~
 	# Load reference junction list
 	#~~~~~~~~~~~~~~~~~~~
-	tab2 = tab_to_dict(jlist)
+	reflist = tab_to_dict(jlist)
 
 	# Find the junctions in jlist that are not in jtab
 
-	keys1 = tab1.keys()
-	keys2 = tab2.keys()
+	keys1 = jdict.keys()
+	keys2 = reflist.keys()
 
-	print "Getting juncs in jlist not in jtab"
+	print "Getting juncs in reflist not in jtab"
 	keyoverlap = [x for x in keys2 if x not in keys1]
 	counter = len(keyoverlap)
 
@@ -455,17 +465,42 @@ def main():
 		donid = j1.donid
 		accid = j1.accid
 		if covbyedge[donid]:
-			covbyedge[donid] += int(tab1[juncid]['cov'])
+			covbyedge[donid] += int(jdict[juncid]['cov'])
 		else:
-			covbyedge[donid] = int(tab1[juncid]['cov'])
+			covbyedge[donid] = int(jdict[juncid]['cov'])
 		if covbyedge[accid]:
-			covbyedge[accid] += int(tab1[juncid]['cov'])
+			covbyedge[accid] += int(jdict[juncid]['cov'])
 		else:
-			covbyedge[accid] = int(tab1[juncid]['cov'])
+			covbyedge[accid] = int(jdict[juncid]['cov'])
 
 	for edgeid in covbyedge.keys():
 		print edgeid, covbyedge[edgeid]
 		
+
+	# These are the fields you end up with after merging:
+	#juncid	geneassign	cov	lirt	rirt	irt	dncov	ancov	numsamps
+	#chr2L:22427471_22427525:- 	none 	2 	57 	28 	85 	0 	0 	1
+	#chr2R:5702257_5702656:+ 	FBgn0040092 	13 	0 	0 	0 	0 	0 	2
+	#chr2L:11436293_11436415:- 	FBgn0261648 	23 	0 	0 	0 	0 	0 	2
+	#chr2R:9334834_9336812:- 	FBgn0013765 	6 	0 	0 	0 	0 	0 	2
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Now compile the results
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# First show how you can get in hte myjuncs list
+	print "Now the results"
+	print "juncid\tgeneassign\tcov\tlirt\trirt\tirt\tdncov\tancov"
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		donid = j1.donid
+		accid = j1.accid
+		if covbyedge[donid]: dncov = covbyedge[donid]
+		else: dncov = 0
+		if covbyedge[accid]: ancov = covbyedge[accid]
+		else: ancov = 0
+		results = [juncid, reflist[juncid]['geneassign'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['lirt'] + IRT[juncid]['rirt'], dncov, ancov]
+		#print(results, sep='\t')
+		print('\t'.join(map(str,results)))
 
 	quit("done")
 

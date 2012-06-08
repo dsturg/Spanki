@@ -22,10 +22,9 @@ def readtabs(myfile):
 	lines = csv.reader(open(myfile, 'rb'), delimiter='\t')
 	linecount = 0
 	for line in lines:
-		#print line
 		if (linecount < 1):
 			keys = line
-		else: 
+		elif len(line) > 0: 
 			values = line
 			linedict = dict(zip(keys, values))
 			juncid = str(linedict['juncid']).rstrip(" ")
