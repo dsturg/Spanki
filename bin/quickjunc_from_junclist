@@ -525,7 +525,7 @@ def main():
 			else: dncov = 0
 			if covbyedge[accid]: ancov = covbyedge[accid]
 			else: ancov = 0
-			results = [juncid, reflist[juncid]['geneassign'],  reflist[juncid]['annostatus'],  reflist[juncid]['intron_size'],  reflist[juncid]['gmcode'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['irt'], dncov, ancov]
+			results = [juncid, reflist[juncid]['geneassign'],  reflist[juncid]['annostatus'],  reflist[juncid]['intron_size'],  reflist[juncid]['gmcode'],  reflist[juncid]['regcode'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['irt'], dncov, ancov]
 			#print(results, sep='\t')
 			print >> juncs_out, ('\t'.join(map(str,results)))
 

@@ -102,10 +102,13 @@ outfile = args.o
 
 # Prepare output directory
 output_dir = outfile
-spanky_utils.prepare_output_dir(output_dir)
+spanky_utils.prepare_basic_output_dir(output_dir)
 
-comp_out_name = output_dir + "/junc_compare.out"
-comp_out = open(comp_out_name, "w")
+verbose_comp_out_name = output_dir + "/junc_compare_verbose.out"
+verbose_comp_out = open(verbose_comp_out_name, "w")
+
+concise_comp_out_name = output_dir + "/junc_compare.out"
+concise_comp_out = open(concise_comp_out_name, "w")
 
 
 def main():
@@ -134,23 +137,33 @@ def main():
 	keys1 = tab1.keys()
 	keys2 = tab2.keys()
 
-	print "Getting intersection between tables"
-	keyoverlap = [x for x in keys1 if x in keys2]
+	#print "Getting intersection between tables"
+	#keyoverlap = [x for x in keys1 if x in keys2]
+	
+	
+	'''
+	In this version, the junction tabs should all be the same length.  If not, get intersection
+	'''
+	if len(keys1) == len(keys2):
+		keyoverlap = keys1
+	else:
+		print "Getting intersection between tables"
+		keyoverlap = [x for x in keys1 if x in keys2]
 	counter = len(keyoverlap)
 
 	for x in keyoverlap:
 		j1 = Junctionid(x)
 		strand = j1.strand
 		if (strand in '+'):
-			print x, "plus strand", j1.strand, len(strand)
-			print tab1[x]
+			#print x, "plus strand", j1.strand, len(strand)
+			#print tab1[x]
 			donor_irt1 = int(tab1[x]['lirt'])
 			donor_irt2 = int(tab2[x]['lirt'])
 			acc_irt1 = int(tab1[x]['rirt'])
 			acc_irt2 = int(tab2[x]['rirt'])
 		else:
-			print x, "minus strand", j1.strand, len(strand)
-			print tab1[x]
+			#print x, "minus strand", j1.strand, len(strand)
+			#print tab1[x]
 			donor_irt1 = int(tab1[x]['rirt'])
 			donor_irt2 = int(tab2[x]['rirt'])
 			acc_irt1 = int(tab1[x]['lirt'])
@@ -206,7 +219,47 @@ def main():
 		myresults[x]['dncov2'] = tab2[x]['dncov']
 		myresults[x]['ancov1'] = tab1[x]['ancov']
 		myresults[x]['ancov2'] = tab2[x]['ancov']
-			
+		
+		dncov1 = int(tab1[x]['dncov'])
+		dncov2 = int(tab2[x]['dncov'])
+		cov1 = int(tab1[x]['cov'])
+		cov2 = int(tab2[x]['cov'])
+		irt1 = int(tab1[x]['irt'])
+		irt2 = int(tab2[x]['irt'])
+		
+		totalcov1 = int(dncov1) + donor_irt1 + int(cov1)
+		totalcov2 = int(dncov2) + donor_irt2 + int(cov2)
+		myresults[x]['totalcov1'] = totalcov1
+		myresults[x]['totalcov2'] = totalcov2
+		myresults[x]['avg_totalcov'] = ((dncov1 + donor_irt1 + cov1) + (dncov1 + donor_irt1 + cov1)) / 2
+		
+		try:
+			psi_donor1 = (donor_irt1 + dncov1) / (donor_irt1 + dncov1 + cov1)
+		except ZeroDivisionError:
+			psi_donor1 = 0
+		try:
+			psi_irt1 = (irt1/2) / ((irt1/2) + cov1)
+		except ZeroDivisionError:
+			psi_irt1 = 0
+		
+		try:
+			psi_donor2 = (donor_irt2 + dncov2) / (donor_irt2 + dncov2 + cov2)
+		except ZeroDivisionError:
+			psi_donor2 = 0
+		try:
+			psi_irt2 = (irt2/2) / ((irt2/2) + cov2)
+		except ZeroDivisionError:
+			psi_irt2 = 0
+
+		myresults[x]['PSI_donor1'] = psi_donor1
+		myresults[x]['PSI_IRT1'] = psi_irt1
+		myresults[x]['PSI_donor2'] = psi_donor2
+		myresults[x]['PSI_IRT2'] = psi_irt2
+
+		myresults[x]['deltaPSI_donor'] = psi_donor1 - psi_donor2
+		myresults[x]['deltaPSI_IRT'] = psi_irt1 - psi_irt2
+		
+		
 	#~~~~~~~~~~~~~~~~~~~
 	# FDR correction
 	#~~~~~~~~~~~~~~~~~~~
@@ -245,8 +298,29 @@ def main():
 	'pval_irt','qval_irt','pval_dncov','qval_dncov','pval_ancov','qval_ancov','pval_tncov','qval_tncov','pval_donor','qval_donor','pval_acceptor','qval_acceptor','minp']
 
 	sortfield = 'minp'
-	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder)
+	print_dict_sorted_ordered(myresults,verbose_comp_out,sortfield,fieldorder)
+	
+	### Try generating just the donor and irt tables
 
+	for x in myresults:
+		#print >> comp_out, event, myresults[event]['inc1'], myresults[event]['exc1'], myresults[event]['inc2'], myresults[event]['exc2'], myresults[event]['pval'], qconv[myresults[event]['pval']]
+		myresults[x]['qval_irt'] = qconv_irt[myresults[x]['pval_irt']]
+		myresults[x]['qval_ancov'] = qconv_ancov[myresults[x]['pval_ancov']]
+		myresults[x]['qval_dncov'] = qconv_dncov[myresults[x]['pval_dncov']]
+		myresults[x]['qval_tncov'] = qconv_tncov[myresults[x]['pval_tncov']]
+		myresults[x]['qval_donor'] = qconv_donor[myresults[x]['pval_donor']]
+		myresults[x]['qval_acceptor'] = qconv_acceptor[myresults[x]['pval_acceptor']]
+		allp = [myresults[x]['pval_irt'],myresults[x]['pval_donor']]
+		myresults[x]['minp'] = min(allp)
+
+	fieldorder = ['geneassign','annostatus','intron_size','gmcode','regcode','avg_totalcov','cov1','irt1','dncov1','donor_irt1','totalcov1','cov2','irt2','dncov2','donor_irt2','totalcov2',
+	'PSI_IRT1','PSI_IRT2','deltaPSI_IRT','pval_irt','qval_irt','PSI_donor1','PSI_donor2','deltaPSI_donor','pval_donor','qval_donor','minp']
+
+
+	sortfield = 'minp'
+	print_dict_sorted_ordered(myresults,concise_comp_out,sortfield,fieldorder)
+
+	################
 	print "[%s] Run completed" % (spanky_utils.timestamp())
 
 	
