@@ -142,13 +142,15 @@ def main():
 		j1 = Junctionid(x)
 		strand = j1.strand
 		if (strand in '+'):
-			#print x, "plus strand", j1.strand, len(strand)
+			print x, "plus strand", j1.strand, len(strand)
+			print tab1[x]
 			donor_irt1 = int(tab1[x]['lirt'])
 			donor_irt2 = int(tab2[x]['lirt'])
 			acc_irt1 = int(tab1[x]['rirt'])
 			acc_irt2 = int(tab2[x]['rirt'])
 		else:
-			#print x, "minus strand", j1.strand, len(strand)
+			print x, "minus strand", j1.strand, len(strand)
+			print tab1[x]
 			donor_irt1 = int(tab1[x]['rirt'])
 			donor_irt2 = int(tab2[x]['rirt'])
 			acc_irt1 = int(tab1[x]['lirt'])
@@ -180,12 +182,24 @@ def main():
 
 	
 		myresults[x]['geneassign'] = tab1[x]['geneassign']
+		'''
+		Adding annotation
+		'''
+		myresults[x]['annostatus'] = tab1[x]['annostatus']
+		myresults[x]['intron_size'] = tab1[x]['intron_size']
+		myresults[x]['gmcode'] = tab1[x]['gmcode']	
+		myresults[x]['regcode'] = tab1[x]['regcode']
+		
 		myresults[x]['cov1'] = tab1[x]['cov']
 		myresults[x]['cov2'] = tab2[x]['cov']
-		myresults[x]['lirt1'] = tab1[x]['lirt']
-		myresults[x]['lirt2'] = tab2[x]['lirt']
-		myresults[x]['rirt1'] = tab1[x]['rirt']
-		myresults[x]['rirt2'] = tab2[x]['rirt']
+		#myresults[x]['lirt1'] = tab1[x]['lirt']
+		#myresults[x]['lirt2'] = tab2[x]['lirt']
+		#myresults[x]['rirt1'] = tab1[x]['rirt']
+		#myresults[x]['rirt2'] = tab2[x]['rirt']
+		myresults[x]['donor_irt1'] = donor_irt1
+		myresults[x]['donor_irt2'] = donor_irt2
+		myresults[x]['acc_irt1'] = acc_irt1
+		myresults[x]['acc_irt2'] = acc_irt2
 		myresults[x]['irt1'] = tab1[x]['irt']
 		myresults[x]['irt2'] = tab2[x]['irt']
 		myresults[x]['dncov1'] = tab1[x]['dncov']
@@ -227,7 +241,7 @@ def main():
 		allp = [myresults[x]['pval_irt'],myresults[x]['pval_ancov'],myresults[x]['pval_dncov'],myresults[x]['pval_tncov'],myresults[x]['qval_donor'],myresults[x]['qval_acceptor']]
 		myresults[x]['minp'] = min(allp)
 
-	fieldorder = ['geneassign','cov1','irt1','dncov1','ancov1','cov2','irt2','dncov2','ancov2',
+	fieldorder = ['geneassign','annostatus','intron_size','gmcode','regcode','cov1','irt1','dncov1','ancov1','cov2','irt2','dncov2','ancov2',
 	'pval_irt','qval_irt','pval_dncov','qval_dncov','pval_ancov','qval_ancov','pval_tncov','qval_tncov','pval_donor','qval_donor','pval_acceptor','qval_acceptor','minp']
 
 	sortfield = 'minp'

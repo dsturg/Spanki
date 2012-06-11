@@ -145,6 +145,15 @@ def prepare_output_dir(output_dir):
     else:        
         os.mkdir(tmp_dir)
 
+def prepare_basic_output_dir(output_dir):
+	'''
+	Doesn't make a tmp or log directory
+	'''
+	print >> sys.stderr, "[**   Setup   **] Preparing output location:", output_dir
+	if os.path.exists(output_dir):
+		pass
+	else:        
+		os.mkdir(output_dir)
 
 if __name__ == "__main__":
     sys.exit(main())
