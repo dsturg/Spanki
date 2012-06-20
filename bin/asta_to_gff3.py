@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-spankysplice.py
+spankisplice.py
 
 Input junction coverage, astalavista splicing definitions
 Output compiled data by event
@@ -23,8 +23,8 @@ import os
 from pyfasta import Fasta
 
 # Custom modules to import:
-import spanky.spanky_parse_utils as spanky_parse_utils
-import spanky.spanky_utils as spanky_utils
+import spanki.spanki_parse_utils as spanki_parse_utils
+import spanki.spanki_utils as spanki_utils
 
 from datetime import datetime, date
 
@@ -348,8 +348,8 @@ def countEventTypes(ECODES, astalines):
 	return EVENTCOUNT, NONAMEEVENTS
 
 def print_events(NAMED,UNNAMED):
-	print >> sys.stderr, "[%s] Counts of event types:" % (spanky_utils.timestamp())
-	print >> sys.stderr, "[%s] Frequent occuring non-categorized:" % (spanky_utils.timestamp())
+	print >> sys.stderr, "[%s] Counts of event types:" % (spanki_utils.timestamp())
+	print >> sys.stderr, "[%s] Frequent occuring non-categorized:" % (spanki_utils.timestamp())
 	sorted_x = sorted(UNNAMED.iteritems(), key=operator.itemgetter(1))
 	totalnoname = 0
 	totalevents = 0
@@ -848,13 +848,13 @@ def main():
  	# Intializing the reference
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# You need the gtf file, and the fasta file
- 	#lookup = spanky_utils.prep_ref(gtffile,fastafile,output_dir)
+ 	#lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
   	## Note that you now have a reference called ref.bam, and a lookup dict
 	#tmp_dir = output_dir + "/tmp/"
  	#reffile = tmp_dir + "/ref.bam"
 	gtffile = "/users/davidsturgill/data/annotation/current.gtf"
 
-	txdict = spanky_utils.gtf_to_attributes_dict(gtffile)
+	txdict = spanki_utils.gtf_to_attributes_dict(gtffile)
 	lookup = txdict
 	
 	#for txid in txdict:
@@ -877,7 +877,7 @@ def main():
 	astafile = "/users/davidsturgill/data/annotation/splicing_defs/astalavista_BDGP5.25.62_k2.out"
 
  	
-	#print >> sys.stderr, "[%s] Loading asta defs %s" % (spanky_utils.timestamp(), astafile)
+	#print >> sys.stderr, "[%s] Loading asta defs %s" % (spanki_utils.timestamp(), astafile)
 	astalines = GTFtoDict(astafile)
 
 	# data look like this:	
@@ -895,7 +895,7 @@ def main():
  	# Get coordinates to measure
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
-	print >> sys.stderr, "[%s] Iterating through events" % (spanky_utils.timestamp())
+	print >> sys.stderr, "[%s] Iterating through events" % (spanki_utils.timestamp())
 	
 	# Try iterating over lines, calling sub many times
 	eventdict = collections.defaultdict(lambda : collections.defaultdict(dict))	
@@ -1046,7 +1046,7 @@ def main():
 	print "Processed", counter + excluded, "events"
 	print "Excluded", excluded, "events"
 
-	print >> sys.stderr, "[%s] Done processing events %s" % (spanky_utils.timestamp(), output_dir)
+	print >> sys.stderr, "[%s] Done processing events %s" % (spanki_utils.timestamp(), output_dir)
 	
 	summarize_events(eventdict,asta_summary_out)
 

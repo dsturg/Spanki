@@ -30,9 +30,9 @@ from datetime import datetime, date
 
 
 # Custom modules to import:
-import spanky.spanky_parse_utils as spanky_parse_utils
-import spanky.spanky_utils as spanky_utils
-import spanky.sim_models as models
+import spanki.spanki_parse_utils as spanki_parse_utils
+import spanki.spanki_utils as spanki_utils
+import spanki.sim_models as models
 
 
 # Biopython:
@@ -581,7 +581,7 @@ mybp = args.bp
 myir = args.ir
 # Prepare output directory
 output_dir = outfile
-spanky_utils.prepare_output_dir(output_dir)
+spanki_utils.prepare_output_dir(output_dir)
 
 tx_result_out_name = output_dir + "/transcript_sims.txt"
 tx_out = open(tx_result_out_name, "w")
@@ -628,7 +628,7 @@ def main():
  	# Writing parameters to log file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	print >> log_out, "[%s] Run started" % (spanky_utils.timestamp())
+	print >> log_out, "[%s] Run started" % (spanki_utils.timestamp())
 	print >> log_out, "Fastafile:", fastafile
 	print >> log_out, "Reference GTF file:", gtffile
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -674,9 +674,9 @@ def main():
  	# Load a fasta file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
-	print >> sys.stderr, "[%s] Trying to load fasta %s" % (spanky_utils.timestamp(), output_dir)
+	print >> sys.stderr, "[%s] Trying to load fasta %s" % (spanki_utils.timestamp(), output_dir)
 	f = Fasta(fastafile)
-	print >> sys.stderr, "[%s] Done loading fasta %s" % (spanky_utils.timestamp(), output_dir)
+	print >> sys.stderr, "[%s] Done loading fasta %s" % (spanki_utils.timestamp(), output_dir)
 	
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -692,29 +692,29 @@ def main():
  	# Intializing the reference
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# You need the gtf file, and the fasta file
- 	lookup = spanky_utils.prep_ref(gtffile,fastafile,output_dir)
+ 	lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
   	## Note that you now have a reference called ref.bam, and a lookup dict
 	tmp_dir = output_dir + "/tmp/"
  	reffile = tmp_dir + "/ref.bam"
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Load an annotation, flattened as bam (Spanky way)
+ 	# Load an annotation, flattened as bam (Spanki way)
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	print >> sys.stderr, "[%s] Loading annotation as bam" % (spanky_utils.timestamp())
+	print >> sys.stderr, "[%s] Loading annotation as bam" % (spanki_utils.timestamp())
  	reffh = pysam.Samfile( reffile, "rb" )
-	#edgedict, refjuncs = spanky_parse_utils.parseRefAsBam(reffh)
+	#edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
 	
 	if txinput:
-		edgedict, refjuncs = spanky_parse_utils.parseRefSelectionAsBam(reffh,txtab.keys())
+		edgedict, refjuncs = spanki_parse_utils.parseRefSelectionAsBam(reffh,txtab.keys())
 	else:
-		edgedict, refjuncs = spanky_parse_utils.parseRefAsBam(reffh)
+		edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
 
 	refjuncs.sort()
 	reffh.close()
 	reffh = pysam.Samfile( reffile, "rb" )
 	TX = reference_transcript_dict(reffh)
 	reffh.close()
-	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanky_utils.timestamp())
+	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load an annotation, flattened as bam
@@ -993,7 +993,7 @@ def main():
 			print >> sim_sam_out, '\t'.join(samline)
 	
 	
-	print >> sys.stderr, "[%s] Done with sim %s" % (spanky_utils.timestamp(), output_dir)
+	print >> sys.stderr, "[%s] Done with sim %s" % (spanki_utils.timestamp(), output_dir)
 	print txcount, "transcripts simmed"
 	print txskip, "transcripts skipped"
 	print len(reftx), "transcripts in ref"
@@ -1009,7 +1009,7 @@ def main():
 
 	
 	samfile_prefix = "sim"
-	spanky_utils.sam_to_bam(samfile_prefix,fastafile,output_dir)
+	spanki_utils.sam_to_bam(samfile_prefix,fastafile,output_dir)
 
 if __name__ == "__main__":
     sys.exit(main())

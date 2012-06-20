@@ -1,11 +1,13 @@
-Splicing analysis kit (Spanky) v.0.1.3
+Splicing Analysis Kit (Spanki) v.0.2.0
+--       --       --
+
 
 Overview
 ==============
-Spanky is a set of tools to facilitate analysis of alternative splicing from
+Spanki is a set of tools to facilitate analysis of alternative splicing from
 RNA-SEQ data.  Drawing from multiple published and novel analysis methods,
-Spanky compiles quantitative and qualitative information about junction
-alignments and splicing events.  The basic functions of Spanky are to assess
+Spanki compiles quantitative and qualitative information about junction
+alignments and splicing events.  The basic functions of Spanki are to assess
 confidence in junction alignments, and to quantify and compare splicing events.
 
 
@@ -13,7 +15,7 @@ Getting started
 ===============
 
 Please see the wiki pages for details about installing and usage:
- https://github.com/dsturg/Spanky/wiki
+ https://github.com/dsturg/Spanki/wiki
 
 Installation
 ---------------

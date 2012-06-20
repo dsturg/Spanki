@@ -8,13 +8,13 @@ except ImportError:
     print "-------------------------------------------------"
 
 setup(
-        name='spanky',
-        version='0.1.3',
-        #py_modules=['modules/spanky_parse_utils,modules/spanky_utils'],
-        packages = ['spanky'],
-        package_data={'spanky': ['data/*.txt']},
+        name='spanki',
+        version='0.2.0',
+        #py_modules=['modules/spanki_parse_utils,modules/spanki_utils'],
+        packages = ['spanki'],
+        package_data={'spanki': ['data/*.txt']},
         include_package_data=True,
-   		scripts = ['bin/astacomp','bin/junccomp','bin/merge_jtabs_all','bin/sim_transcripts','bin/spankyjunc','bin/spankysplice','bin/splicecomp','bin/quickjunc','bin/simrnaseq_make_models'],
+   		scripts = ['bin/astacomp','bin/junccomp','bin/merge_jtabs_all','bin/sim_transcripts','bin/spankijunc','bin/spankisplice','bin/splicecomp','bin/quickjunc','bin/simrnaseq_make_models'],
         author='David Sturgill',
         description="A splicing analysis toolkit",
         author_email='davidsturgill@niddk.nih.gov',

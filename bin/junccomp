@@ -20,8 +20,8 @@ from scikits.statsmodels.sandbox.stats.multicomp import fdrcorrection0
 # BH correction is from http://statsmodels.sourceforge.net/devel/install.html
 
 # Custom modules to import:
-import spanky.spanky_parse_utils as spanky_parse_utils
-import spanky.spanky_utils as spanky_utils
+import spanki.spanki_parse_utils as spanki_parse_utils
+import spanki.spanki_utils as spanki_utils
 
 
 class Junctionid:
@@ -102,7 +102,7 @@ outfile = args.o
 
 # Prepare output directory
 output_dir = outfile
-spanky_utils.prepare_basic_output_dir(output_dir)
+spanki_utils.prepare_basic_output_dir(output_dir)
 
 verbose_comp_out_name = output_dir + "/junc_compare_verbose.out"
 verbose_comp_out = open(verbose_comp_out_name, "w")
@@ -321,7 +321,7 @@ def main():
 	print_dict_sorted_ordered(myresults,concise_comp_out,sortfield,fieldorder)
 
 	################
-	print "[%s] Run completed" % (spanky_utils.timestamp())
+	print "[%s] Run completed" % (spanki_utils.timestamp())
 
 	
 if __name__ == "__main__":

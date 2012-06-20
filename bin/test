@@ -26,9 +26,9 @@ from datetime import datetime, date
 
 
 # Custom modules to import:
-import spanky.spanky_parse_utils as spanky_parse_utils
-import spanky.spanky_utils as spanky_utils
-import spanky.sim_models as models
+import spanki.spanki_parse_utils as spanki_parse_utils
+import spanki.spanki_utils as spanki_utils
+import spanki.sim_models as models
 
 
 # Biopython:
@@ -579,7 +579,7 @@ model = args.m
 mybp = args.bp
 # Prepare output directory
 output_dir = outfile
-spanky_utils.prepare_output_dir(output_dir)
+spanki_utils.prepare_output_dir(output_dir)
 
 #sims_list_out_name = output_dir + "/simgene.txt"
 #sims_list_out = open(sims_list_out_name, "w")
@@ -626,7 +626,7 @@ def main():
  	# Writing parameters to log file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	print >> log_out, "[%s] Run started" % (spanky_utils.timestamp())
+	print >> log_out, "[%s] Run started" % (spanki_utils.timestamp())
 	print >> log_out, "Fastafile:", fastafile
 	print >> log_out, "Reference GTF file:", gtffile
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

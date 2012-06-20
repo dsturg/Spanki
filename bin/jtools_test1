@@ -22,7 +22,7 @@ import os
 import collections
 
 from datetime import datetime, date
-import spanky.spanky_utils as spanky_utils
+import spanki.spanki_utils as spanki_utils
 
 class Junctionid:
 	"""
@@ -413,7 +413,7 @@ outfile = args.o
 # Prepare output directory
 #~~~~~~~~~~~~~~~~~~~
 #output_dir = outfile
-#spanky_utils.prepare_basic_output_dir(output_dir)
+#spanki_utils.prepare_basic_output_dir(output_dir)
 
 
 #~~~~~~~~~~~~~~~~~~~
@@ -458,10 +458,10 @@ def main():
 	bamfh = pysam.Samfile( bamfile, "rb" )
 	#for alignedread in samfile:
 	# Need some kind of iterator to getread length from first alignment in sam
-	print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanky_utils.timestamp())
+	print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanki_utils.timestamp())
 	IRT = intron_readthrough(myjuncs,bamfh)
 	bamfh.close()
-	print >> sys.stderr, "[%s] Done getting IRT" % (spanky_utils.timestamp())
+	print >> sys.stderr, "[%s] Done getting IRT" % (spanki_utils.timestamp())
 
 
 
