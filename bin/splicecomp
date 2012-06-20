@@ -47,10 +47,10 @@ def tab_to_dict(tabfile):
 		linecount += 1
 	return mytab
 
-def print_dict_sorted_ordered(mydict,fout,sortfield,fieldorder):
+def print_dict_sorted_ordered(mydict,fout,sortfield,fieldorder,keyname):
 	mykeys = fieldorder
 	mytup = []
-	print >> fout, "juncid\t", '\t'.join(fieldorder)
+	print >> fout, keyname, "\t", '\t'.join(fieldorder)
 	# Get tuples of event and sort field
 	for x in mydict.keys():
 		mytup.append([x,mydict[x][sortfield]])
@@ -161,7 +161,7 @@ def main():
 	fieldorder = ['gnames','gids','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval',
 	'inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj','fpkm_proportion1','fpkm_proportion2']
 	sortfield = 'pval'
-	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder)
+	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'eventid')
 
 	print "[%s] Run completed" % (spanki_utils.timestamp())
 
