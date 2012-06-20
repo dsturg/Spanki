@@ -1,0 +1,1333 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+spankijunc.py
+
+This takes BAM files as input, and calculates a variety of metrics
+about junction alignments. 
+
+"""
+from __future__ import division 
+
+import re
+import sys
+import argparse
+import pysam
+import csv
+import math
+import os
+import collections
+
+from pyfasta import Fasta
+from datetime import datetime, date
+
+# Biopython, for revcomp
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
+
+# Custom modules to import:
+import spanki.spanki_parse_utils as spanki_parse_utils
+import spanki.spanki_utils as spanki_utils
+
+class Junc:
+	"""
+	Base class for a junction
+	Expects SAM input
+	"""
+	def __init__(self, chr, start, cigar, readseq, tags):
+		self.chr = chr
+		self.start = start
+		self.cigar = cigar
+		self.readseq = readseq
+		## anchorsize is the genomic coordinate space (accounting for indels)
+		## The aligned portion may be longer or shorter after indels
+		left_anchorsize = 0
+		left_read_anchor = ""
+		left_genome_aligned = ""
+		right_anchorsize = 0
+		right_read_anchor = ""
+		right_genome_aligned = ""
+		gapsize = 0
+		gap_seen = 0
+		readpos = 0
+		genomepos = self.start
+		for i in self.cigar:
+			if i[0] == 0:
+				if gap_seen < 1:
+					left_anchorsize += i[1]
+					left_read_anchor += self.readseq[readpos:readpos + i[1]]
+					left_genome_aligned += Seq(f[self.chr][genomepos:genomepos + i[1]], IUPAC.unambiguous_dna)
+				else:
+					right_anchorsize += i[1]
+					right_read_anchor += self.readseq[readpos:readpos + i[1]]
+					right_genome_aligned += Seq(f[self.chr][genomepos:genomepos + i[1]], IUPAC.unambiguous_dna)
+				readpos += i[1]
+				genomepos += i[1]
+			elif i[0] == 1:
+				'''
+				If insertion, add to readpos
+				'''
+				readpos += i[1]
+			elif i[0] == 2:
+				'''
+				If deletion, add to anchor size
+				'''
+				if gap_seen < 1:
+					left_anchorsize += i[1]
+				else:
+					right_anchorsize += i[1]
+				genomepos += i[1]
+			elif i[0] == 3:
+				gap_seen += 1
+				gapsize += i[1]
+			else:
+				quit("Don't recognize cigar code")
+
+		
+		self.left_read_anchor = left_read_anchor
+		self.right_read_anchor = right_read_anchor
+		self.left_genome_aligned = left_genome_aligned
+		self.right_genome_aligned = right_genome_aligned
+		self.gapsize = gapsize
+
+		self.left_genome_anchor = Seq(f[self.chr][self.start:self.start + left_anchorsize], IUPAC.unambiguous_dna)
+		self.right_genome_anchor = Seq(f[self.chr][self.start + left_anchorsize + gapsize:self.start + left_anchorsize + gapsize + right_anchorsize], IUPAC.unambiguous_dna)
+		
+		junc_left_side = self.start + left_anchorsize + 1
+		junc_right_side = self.start + left_anchorsize + gapsize
+		self.junc_left_side = junc_left_side
+		self.junc_right_side = junc_right_side
+
+		self.donormotif = Seq(f[self.chr][junc_left_side - 1:junc_left_side + 1], IUPAC.unambiguous_dna)
+		self.acceptormotif = Seq(f[self.chr][junc_right_side - 2:junc_right_side], IUPAC.unambiguous_dna)
+		self.dastring = str(self.donormotif + '..' + self.acceptormotif)
+		
+		""" 
+		Try to get strand from SAM file first
+		If it can't do it, use donor/acceptor motifs
+		If still no, use *
+		"""
+		keys = []
+		values = []
+		for tag in tags:
+			keys.append(tag[0])
+			values.append(tag[1])
+		tagdict = dict(zip(keys, values))
+		try:
+			strand = tagdict['XS']
+			self.strand = strand
+		except:
+			if (self.dastring == "GT..AG"):
+				self.strand = "+"
+			elif (self.dastring == "GC..AG"):
+				self.strand = "+"
+			elif (self.dastring == "AT..AC"):
+				self.strand = "+"
+			elif (self.dastring == "CT..AC"):
+				self.strand = "-"
+			elif (self.dastring == "CT..GC"):
+				self.strand = "-"
+			elif (self.dastring == "GT..AT"):
+				self.strand = "-"
+			else: 
+				self.strand = "*"
+		
+		self.juncid = self.chr + ":" + str(junc_left_side) + "_" + str(junc_right_side) + ":" + self.strand
+
+	def display(self):
+		print self.juncid
+		print self.dastring
+		print self.cigar
+		print "start", self.start
+		print "L read anchor   ", self.left_read_anchor
+		print "L genome aligned", self.left_genome_aligned
+		print "R read anchor   ", self.right_read_anchor
+		print "R genome aligned", self.right_genome_aligned
+		print "READ            ", self.readseq
+
+class Junctionid:
+	"""
+	Base class for a junction, from juncid
+	Expects junction id
+	"""
+	def __init__(self, juncid):
+		chr = juncid.split(':')[0]
+		coords = juncid.split(':')[1]
+		strand = juncid.split(':')[2]
+		start = int(coords.split('_')[0]) - 1
+		end = int(coords.split('_')[1])
+		self.chr = chr
+		self.start = start
+		self.end = end
+		self.strand = strand.strip()
+		self.intronsize = end - start
+		self.accid = str(coords.split('_')[0])
+		self.donid = chr + ":" + str(end)
+
+def parse_aligns_detailed(samfile):
+	"""
+	Takes a sam file as input
+	Summarizes coverage, entropy, etc
+	v.2 uses the Junc class
+	"""
+	JTAB = collections.defaultdict(int)
+	UNFILT_JTAB = collections.defaultdict(int)
+	STAB = collections.defaultdict(lambda : collections.defaultdict(dict))
+	NEWDTAB = collections.defaultdict(lambda : collections.defaultdict(dict))
+	MMES = collections.defaultdict(lambda : collections.defaultdict(dict))
+	zero_anchor_warnings = 0
+	for alignedread in samfile:
+		if (len(alignedread.cigar) > 1):
+			# Note that alignedread.is_reverse does not work right to get strand
+			#strand = alignedread.tags[1][1] 
+			mytid = alignedread.tid
+			chr = samfile.getrname(mytid)
+			start = alignedread.pos
+			offset = alignedread.pos
+			cigar = alignedread.cigar
+			readseq = alignedread.query
+
+			subcigars = subdivideCigar(cigar)
+
+			for cigar in subcigars:
+				j1 = Junc(chr,start,cigar,readseq,alignedread.tags)
+				'''
+				For multi-gap cigars, you have to add to the start
+				for the next one
+				'''
+				start += int(len(j1.left_genome_aligned))
+				start += j1.gapsize
+
+				juncid = j1.juncid
+
+				
+				'''
+				Apply a restriction on anchor size
+				to count the junction
+				'''
+				min_anchor = min(len(j1.left_read_anchor),len(j1.right_read_anchor))
+
+				'''
+				Also count unfiltered (no anchor cutoff)
+				'''
+
+				if min_anchor < 1:
+					'''
+					Warn when anchor size is zero
+					For example, cigar 76M54354N
+					These are errors, and shouldn't count toward coverage
+					'''
+					zero_anchor_warnings += 1
+				else: 
+					UNFILT_JTAB[juncid] += 1; # Total junction spanning reads
+
+
+				if min_anchor >= 8:
+				
+					JTAB[juncid] += 1; # Total junction spanning reads
+	
+					'''
+					For MMES
+					'''
+					hdistl = hamming_distance(j1.left_read_anchor,j1.left_genome_aligned)
+					hdistr = hamming_distance(j1.right_read_anchor,j1.right_genome_aligned)
+					matchl = len(j1.left_read_anchor) - hdistl
+					matchr = len(j1.right_read_anchor) - hdistr
+					minmatch = matchl
+					if matchr < matchl: minmatch = matchr
+					if (MMES[j1.juncid]):
+						currentmax = MMES[j1.juncid]['MAXmmes']
+					else:
+						currentmax = 0
+						MMES[j1.juncid]['MAXminanc'] = 0
+					if currentmax > minmatch:
+						pass
+					else: MMES[j1.juncid]['MAXmmes'] = minmatch
+					
+					# Get smallest ancor of this alinment
+					minlen = len(j1.left_read_anchor)
+					if minlen > len(j1.right_read_anchor):
+						minlen = len(j1.right_read_anchor)
+					
+					# If the smallest anchor is bigger than current
+					# maximium, change the dict entry
+					if MMES[j1.juncid]['MAXminanc'] < minlen:
+						MMES[j1.juncid]['MAXminanc'] = minlen
+					
+					''' 
+					Original start of read is used as offset
+					even if it is a multi-join read
+					'''
+					if STAB[juncid][offset]:
+						STAB[juncid][offset] = STAB[juncid][offset] + 1
+					else: 
+						STAB[juncid][offset] = 1
+	
+					mysplit = juncid.split(":")
+					coords = mysplit[1]
+					donor, accid = coords.split("_")
+					donid = chr + ":" + donor
+					#donid, accid = juncid.split("_")
+					if NEWDTAB[donid][accid]:
+						NEWDTAB[donid][accid] += 1
+					else:
+						NEWDTAB[donid][accid] = 1
+				else:
+					#print "anchor too small", min_anchor, juncid, alignedread.qname
+					pass
+
+	# Coverage, indexed by donor
+	# NEWDTAB[donid][accid] 	
+	# Coverage, indexed by offset (For entropy calc)
+	#STAB[juncid][offset] (count)
+	# Count total junction spanning reads
+	#JTAB[juncid] (count)
+	if zero_anchor_warnings > 0:
+		print "[ WARNING ] ", zero_anchor_warnings, "alignments with zero anchor coverage excluded"
+	
+	return JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES
+
+def crossTabulate(x, fh):
+	D = collections.defaultdict(int)
+	for y in x:
+		D[y] += 1
+	x = D.keys()
+	x.sort()
+	for x in D.keys():
+		print >> fh, "\t", x, "\t", D[x]
+
+
+def findEdgeTx(chr,pos,strand,samfile):
+	transcripts = []
+	iter = samfile.fetch( chr, pos, pos + 1)
+	for x in iter:
+		samfilestrand = x.tags[0][1]
+		txid = str(x.qname)
+		if (strand == samfilestrand): 
+			transcripts.append(txid)
+	return transcripts
+
+def listToKeys(mylist):
+	D = defaultdict(int)
+	for x in mylist:
+		D[x] += 1
+	x = D.keys()
+	x.sort()
+	newid = ",".join(x)
+	return newid
+	
+def txlistToGeneList(mylist,lookup):
+	D = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for x in mylist:
+		if lookup[x]['gene_id']:
+			geneid = lookup[x]['gene_id']
+		else:
+			geneid = "No gene assigned for this transcript"
+		D[geneid] = 1
+	x = D.keys()
+	x.sort()
+	return x
+
+def donor_acceptor_transition(NEWDTAB,myjuncs):
+	"""
+	Gets donor-acceptor transition probabilities 
+	using junction coverage
+	"""
+	DATRANS = collections.defaultdict(lambda : collections.defaultdict(dict))
+	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+	joinsbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+	Ks = NEWDTAB.keys()
+	Ks.sort()
+	'''
+	First calculate coverage by edge (donor or acceptor)
+	Remember to check if each join has been filtered out
+	'''
+	for x in Ks:
+		#dcov = sum(NEWDTAB[x].values())
+		#covbyedge[x] = dcov
+		covbyedge[x] = 0
+		joinsbyedge[x] = 0
+		for y in NEWDTAB[x].keys():
+			'''
+			Get juncid
+			'''
+			juncid = str(x) + "_" + str(y)
+			if (juncid + ":+") in myjuncs:
+				juncid = juncid + ":+"
+			elif (juncid + ":-") in myjuncs:
+				juncid = juncid + ":-"
+			else:
+				pass
+			''' 
+			Check to see if it was filtered
+			'''
+			if juncid in myjuncs:
+				covbyedge[x] += NEWDTAB[x][y]
+				joinsbyedge[x] += 1
+				#jcov = NEWDTAB[x][y]
+				#print "Looking at ", x, "to", y, "with jcov", jcov
+				if covbyedge[y]:
+					covbyedge[y] += NEWDTAB[x][y]
+					joinsbyedge[y] += 1
+				else:
+					covbyedge[y] = NEWDTAB[x][y]
+					joinsbyedge[y] = 1
+	'''
+	Now instantiate hash of neighbor coverages keyed by juncid
+	Also do DATRANS
+	'''
+	NEIGHBORCOV = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for x in Ks:
+		for y in NEWDTAB[x].keys():
+			juncid = str(x) + "_" + str(y)
+			if (juncid + ":+") in myjuncs:
+				juncid = juncid + ":+"
+			elif (juncid + ":-") in myjuncs:
+				juncid = juncid + ":-"
+			else:
+				pass
+
+			if (juncid in myjuncs):
+				#print "Looking at neighbor coverage"
+				jcov = NEWDTAB[x][y]
+				#print "covbyedge", covbyedge[x]
+				try:
+					trans = jcov/covbyedge[x]
+				except ZeroDivisionError:
+					trans = 0
+				DATRANS[juncid]['datrans'] = "%.3f" % trans
+				NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
+				NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
+				NEIGHBORCOV[juncid]['dnjoins'] = joinsbyedge[x]
+				NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[y]
+	return DATRANS, NEIGHBORCOV, joinsbyedge
+
+	
+def intron_readthrough(myjuncs,samfile):
+	IRT = collections.defaultdict(lambda : collections.defaultdict(dict))
+	overhang = 8
+	'''
+	Get read length from first aligment
+	'''
+	for alignedread in samfile:
+		readlength = alignedread.rlen
+		break
+	for juncid in myjuncs:
+
+		j1 = Junctionid(juncid)
+
+		# Check left side
+		lirt = 0
+		rangestart = j1.start - readlength - overhang
+		rangeend = j1.start - overhang
+		if (rangestart < 0): rangestart = 0
+		# Need this for cases where a junciton is near 
+		# the end of a chromosome
+		
+		
+		# Get all reads in the region where intron read-thru reads
+		# could reside.
+		# Count all reads that start in the correct range and have no gaps.
+		reads = samfile.fetch( j1.chr, rangestart, rangeend )		
+		for read in reads:
+			if (rangeend > read.pos > rangestart): 
+				cigar = read.cigar
+				gaps = 0
+				if len(cigar) > 1:
+					for i in cigar:
+						if i[0] == 3: gaps += 1
+				if gaps < 1: 
+					lirt += 1
+		# Check right side
+		rirt = 0
+		rangestart = j1.end - readlength + overhang
+		rangeend = j1.end - overhang
+		if (rangestart < 0): rangestart = 0
+		reads = samfile.fetch( j1.chr, rangestart, rangeend )
+		for read in reads:
+			if (rangeend > read.pos > rangestart): 
+				cigar = read.cigar
+				gaps = 0
+				if len(cigar) > 1:
+					for i in cigar:
+						if i[0] == 3: gaps += 1
+				if gaps < 1: 
+					rirt += 1
+		IRT[juncid]['lirt'] = lirt
+		IRT[juncid]['rirt'] = rirt
+		IRT[juncid]['irt'] = lirt + rirt
+	return IRT
+
+
+def alignment_entropies(STAB,JTAB):
+	"""
+	Prints entropies and coverages
+	"""
+	""" juncid cov offsets entropy """
+	""" chr2L:101195_101248:+	4 	3 	1.50 """
+	ENTROPIES = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for x in STAB.keys():
+		# Try to calculate entropy
+		totalsamreads = JTAB[x]
+		jctn_entropy = 0
+		offsets = 0
+		for y in STAB[x].keys():\
+			# For each offset
+			p_term = STAB[x][y] / totalsamreads
+			jctn_entropy += p_term * math.log(p_term,2)
+			offsets += 1
+			#leftmost.append[y]
+		jctn_entropy = math.fabs(jctn_entropy)
+		ENTROPIES[x]['offsets'] = offsets
+		ENTROPIES[x]['entropy'] = "%.6f" % jctn_entropy
+	return ENTROPIES
+	
+
+def hamming_distance(s1, s2):
+	assert len(s1) == len(s2)
+	s1 = s1.upper()
+	s2 = s2.upper()
+	return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
+
+def subdivideCigar(cigar):
+	# Get gap indices
+	gaps = []
+	counter = 0
+	for i in cigar:
+		if i[0] == 3: gaps.append(counter)
+		counter += 1	
+	# Define borders of junction regions
+	if gaps:
+		"""
+		IF there are no gaps(juncs)
+		return epty set
+		"""
+		borders = [0]
+		for i in range(len(gaps[:-1])):
+			borders.append(gaps[i+1])
+			borders.append(gaps[i] + 1)
+		borders.append(len(cigar))
+		
+		# Define subcigar ranges
+		subcigars = []
+		myjuncs = zip(borders[0::2], borders[1::2])
+		for junc in myjuncs:
+			subcigars.append(cigar[junc[0]:junc[1]])
+	else:
+		subcigars = []
+	return subcigars
+
+def printDict(mydict,fout):
+	mykeys = mydict.keys()
+	print >> fout, "juncid\t", '\t'.join(map(str,mydict[mykeys[1]].keys()))
+	for x in mydict.keys():
+		vals = []
+		for field in mydict[x]:
+			vals.append(mydict[x][field])
+		print >> fout, x, '\t', '\t'.join(map(str,vals))
+
+def print_dict_ordered(mydict,fout,fieldorder):
+	#mykeys = fieldorder
+	mykeys = mydict.keys()
+	mykeys.sort()
+	print >> fout, "juncid\t", '\t'.join(fieldorder)
+	for x in mykeys:
+		vals = []
+		for field in fieldorder:
+			vals.append(mydict[x][field])
+		print >> fout, x, '\t', '\t'.join(map(str,vals))
+
+def uniq(seq): 
+	# Not order preserving 
+	keys = {} 
+	for e in seq: 
+		keys[e] = 1 
+	return keys.keys()
+
+################################
+################################
+################################
+#
+#Below is all stufff I had
+# separated in jtools_analyses
+################################
+################################
+def getJoinGeneAssign(myjuncs,refjuncs,edgedict,samfile,lookup):
+	'''
+	For unannotated joins, make a gene assignment 
+	according to which genes it overlaps
+	'''
+	GENEASSIGN = collections.defaultdict(lambda : collections.defaultdict(dict))
+	ANNOSTATUS = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for juncid in myjuncs:
+		transcripts = []
+		donassign = []
+		accassign = []
+		j1 = Junctionid(juncid)
+		ancode = ""
+		if j1.strand == '+':
+			donid = j1.chr + ":" + str(j1.start+1)
+			accid = j1.chr + ":" + str(j1.end)
+			if juncid in refjuncs: 
+				ancode = "an"
+				if edgedict.has_key(donid):
+					transcripts = []
+					transcripts.append(edgedict[donid])
+					#print transcripts
+					donassign = txlistToGeneList(transcripts,lookup)
+				else:
+					print donid, ' not in hash, but join ', juncid, ' is'
+				
+				if edgedict.has_key(accid):
+					transcripts = []
+					transcripts.append(edgedict[accid])
+					accassign = txlistToGeneList(transcripts,lookup)
+				else:
+					print accid, ' not in hash, but join ', juncid, ' is'
+			else: 
+				ancode = "un"
+				if edgedict.has_key(donid): 
+					ancode = ancode + ".ad"
+					transcripts = []
+					transcripts.append(edgedict[donid])
+					donassign = txlistToGeneList(transcripts,lookup)
+				else:
+					transcripts = findEdgeTx(j1.chr,j1.start,j1.strand,samfile)
+					donassign = txlistToGeneList(transcripts,lookup)
+				if edgedict.has_key(accid): 
+					ancode = ancode + ".aa"
+					transcripts = []
+					transcripts.append(edgedict[accid])
+					accassign = txlistToGeneList(transcripts,lookup)
+				else:
+					transcripts = findEdgeTx(j1.chr,j1.end - 1,j1.strand,samfile)
+					accassign = txlistToGeneList(transcripts,lookup)
+		else:
+			accid = j1.chr + ":" + str(j1.start + 1)
+			donid = j1.chr + ":" + str(j1.end)
+			if juncid in refjuncs: 
+				ancode = "an"
+				if edgedict.has_key(donid):
+					transcripts = []
+					transcripts.append(edgedict[donid])
+					donassign = txlistToGeneList(transcripts,lookup)
+				else:
+					print donid, ' not in hash, but join ', juncid, ' is'
+				
+				if edgedict.has_key(accid):
+					transcripts = []
+					transcripts.append(edgedict[accid])
+					accassign = txlistToGeneList(transcripts,lookup)
+				else:
+					print accid, ' not in hash, but join ', juncid, ' is'
+			else: 
+				ancode = "un"
+				if edgedict.has_key(donid): 
+					ancode = ancode + ".ad"
+					transcripts = []
+					transcripts.append(edgedict[donid])
+					donassign = txlistToGeneList(transcripts,lookup)
+				else:
+					transcripts = findEdgeTx(j1.chr,j1.end - 1,j1.strand,samfile)
+					donassign = txlistToGeneList(transcripts,lookup)				
+				if edgedict.has_key(accid): 
+					ancode = ancode + ".aa"
+					transcripts = []
+					transcripts.append(edgedict[accid])
+					accassign = txlistToGeneList(transcripts,lookup)
+				else:
+					transcripts = findEdgeTx(j1.chr,j1.start,j1.strand,samfile)
+					accassign = txlistToGeneList(transcripts,lookup)
+	
+		
+		goverlap = [gene for gene in donassign if gene in accassign]
+		
+		if goverlap:
+			if len(goverlap) == 1:
+				geneassign = goverlap[0]
+			else:
+				geneassign = "ambiguous"
+		else:
+			if donassign or accassign:
+				''' 
+				If either don or acc is assigned 
+				'''
+				geneassign = "ambiguous"
+			else:
+				geneassign = "none"
+
+		if donassign: 
+			donstring = ",".join(donassign)
+		else:
+			donstring = "none"
+		if accassign: 
+			accstring = ",".join(accassign)
+		else:
+			accstring = "none"
+		
+		ANNOSTATUS[juncid] = ancode
+		GENEASSIGN[juncid]['geneassignL'] = donstring
+		GENEASSIGN[juncid]['geneassignR'] = accstring
+		GENEASSIGN[juncid]['geneassign'] = geneassign
+	#samfile.close()
+	return GENEASSIGN, ANNOSTATUS
+
+def makeRefList(myjuncs,f):
+ 	"""
+ 	Gets the anchor seq of each annotated join for comparison
+ 	"""
+ 	mylist = []
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		if j1.strand == '+':
+			fiveprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
+			acceptormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+		else:
+			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			fiveprimeflank = fiveprimeflank.reverse_complement()
+			threeprimeflank = threeprimeflank.reverse_complement()
+			acceptormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+			dastring = donormotif.reverse_complement() + '..' + acceptormotif.reverse_complement()
+		#print fiveprimeflank + ".." + threeprimeflank
+		#print dastring, strand
+		mylist.append(fiveprimeflank + threeprimeflank)
+	return(mylist)
+
+def intron_sequence(myjuncs,f):
+ 	"""
+ 	Returns the intron sequence and flanks for each join
+ 	"""
+ 	INTSEQ = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		if j1.strand == '+':
+			fiveprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
+			acceptormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+			acceptormotif = acceptormotif.upper()
+			donormotif = donormotif.upper()
+			dastring = donormotif + '..' + acceptormotif
+		else:
+			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			fiveprimeflank = fiveprimeflank.reverse_complement()
+			threeprimeflank = threeprimeflank.reverse_complement()
+			acceptormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+			acceptormotif = acceptormotif.upper()
+			donormotif = donormotif.upper()
+			dastring = donormotif.reverse_complement() + '..' + acceptormotif.reverse_complement()
+		INTSEQ[juncid]['dinucleotide'] = dastring
+		INTSEQ[juncid]['flank5'] = fiveprimeflank
+		INTSEQ[juncid]['flank3'] = threeprimeflank
+	return INTSEQ
+	
+def anchor_hamming(myjuncs,f):
+ 	"""
+ 	Gets the hamming distances of 
+ 	interior intron sequence and 
+ 	exon anchor sequence
+ 	"""
+ 	ANCHAM = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		if j1.strand == '+':
+			fiveprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.start:j1.start+10], IUPAC.unambiguous_dna)
+			acceptormotif = Seq(f[j1.chr][j1.end-10:j1.end], IUPAC.unambiguous_dna)
+		else:
+			acceptormotif = Seq(f[j1.chr][j1.start:j1.start+10], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.end-10:j1.end], IUPAC.unambiguous_dna)
+			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			acceptormotif = acceptormotif.reverse_complement()
+			donormotif = donormotif.reverse_complement()
+			fiveprimeflank = fiveprimeflank.reverse_complement()
+			threeprimeflank = threeprimeflank.reverse_complement()
+		ANCHAM[juncid]['hamming5'] = hamming_distance(fiveprimeflank,acceptormotif)
+		ANCHAM[juncid]['hamming3'] = hamming_distance(threeprimeflank,acceptormotif)
+	return ANCHAM
+	
+def getGeneAnnotationCodes(samfile,lookup):
+	'''
+	Create a dict of features associated with genes
+	And make a standardized code for each gene model
+	'''
+	GENES = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for alignedread in samfile:
+		txid = str(alignedread.qname)
+		geneid = lookup[txid]['gene_id']
+		if geneid:
+			if geneid in GENES.keys():		
+				GENES[geneid]['tx'].append(txid)
+				GENES[geneid]['start'].append(alignedread.pos)
+			else:
+				GENES[geneid]['tx'] = []
+				GENES[geneid]['tx'].append(txid)
+				GENES[geneid]['start'] = []
+				GENES[geneid]['start'].append(alignedread.pos)
+				GENES[geneid]['intron'] = []		
+			if (len(alignedread.cigar) > 1):
+				strand = alignedread.tags[0][1] 
+				mytid = alignedread.tid
+				txid = str(alignedread.qname)
+				chr = samfile.getrname(mytid)
+				start = alignedread.pos
+				offset = start
+				gaps = []
+				matches = []
+				addnextmatch = 0
+				addtomatch = 0
+				for i in alignedread.cigar:
+					# Iterate over each entry in cigar
+					# matches should be appended 
+					if (i[0] == 0):
+						if addnextmatch > 0:
+							matches[-1] = matches[-1] + i[1] + addtomatch
+							addnextmatch = 0
+							addtomatch = 0
+						else: matches.append(i[1])
+					elif (i[0] == 3):
+						gaps.append(i[1])
+					elif (i[0] == 1):
+						addnextmatch += 1
+						addtomatch = 0
+					elif (i[0] == 2):
+						addnextmatch += 1
+						addtomatch = i[1]
+										
+				if len(gaps) > 0:
+					for i in range(len(gaps)):
+						junc_left_side = start + matches[i] + 1
+						junc_right_side = start + matches[i] + gaps[i] 
+						juncid = str(chr) + ":" + str(junc_left_side) + "_" + str(junc_right_side) + ":" + str(strand)
+						#if (strand == '+'):
+						#	donid = chr + ":" + str(junc_left_side)
+						#	accid = chr + ":" + str(junc_right_side)
+						#else:
+						#	donid = chr + ":" + str(junc_right_side)
+						#	accid = chr + ":" + str(junc_left_side)
+						GENES[geneid]['intron'].append(juncid)
+						start = start + matches[i] + gaps[i];
+	#samfile.close()
+	for gene in GENES.keys():
+		code = ""
+		code += str(len(uniq(GENES[gene]['tx'])))
+		code += "t."
+		code += str(len(uniq(GENES[gene]['intron'])))
+		code += "i."
+		code += str(len(uniq(GENES[gene]['start'])))
+		code += "s"
+		regcode = ""
+		if len(uniq(GENES[gene]['start'])) >  1:  
+			regcode = "ap"
+		if (len(uniq(GENES[gene]['tx'])) > len(uniq(GENES[gene]['start']))) and len(uniq(GENES[gene]['intron'])) > 0:  
+			if regcode:
+				regcode = "asap"
+			else:
+				regcode = "as"
+		if len(uniq(GENES[gene]['intron'])) < 1 and len(uniq(GENES[gene]['start'])) < 2 :
+		# NO introns, and 1 tx
+			if regcode:
+				#print regcode
+				#print gene
+				quit("already assigned")
+			regcode = "se"
+		if len(uniq(GENES[gene]['intron'])) > 0 and len(uniq(GENES[gene]['tx'])) < 2 :
+		# >= 1 intron, but one transcript
+			if regcode: 
+				print regcode
+				print gene
+				quit("Already assigned")
+			regcode = "con"
+		
+		if not regcode:
+			print regcode
+			print gene
+			print GENES[gene]
+			quit("No assignment!")
+		# ap = multiple promoters
+		# as = alternatively spliced (vs spliced)
+		# asap = alt prom, alt spliced
+		# con = spliced, but not alternatively
+		# se = Not spliced, and no alt. promoters
+		GENES[gene]['gmcode'] = code
+		#print "gmcode: ", gmcode
+		GENES[gene]['regcode'] = regcode
+		#print "exoncode: ", regcode
+	return GENES
+
+
+def annotation_status(myjuncs,refjuncs,edgedict):
+	ANNSTATUS = collections.defaultdict(lambda : collections.defaultdict(dict))
+ 	stati = []
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		if j1.strand == '+':
+			if juncid in refjuncs: ancode = "an"
+			else: 
+				ancode = "un"
+				donid = j1.chr + ":" + str(j1.start)
+				accid = j1.chr + ":" + str(j1.end)
+				if edgedict.has_key(donid): ancode = ancode + ".ad"
+				if edgedict.has_key(accid): ancode = ancode + ".aa"
+			#print >> gff_juncs_annot_out, juncid + '\t' + j1.chr + '\t' + j1.strand + '\t', j1.start, '\t', j1.end, '\t' + ancode 
+			stati.appj1.end(ancode)
+		else:
+			if juncid in refjuncs: ancode = "an"
+			else: 
+				ancode = "un"
+				accid = j1.chr + ":" + str(j1.start)
+				donid = j1.chr + ":" + str(j1.end)
+				if edgedict.has_key(donid): ancode = ancode + ".ad"
+				if edgedict.has_key(accid): ancode = ancode + ".aa"
+			#print >> gff_juncs_annot_out, juncid + '\t' +  j1.chr + '\t' + j1.strand + '\t', j1.start, '\t', j1.end, '\t' + ancode
+			stati.appj1.end(ancode)
+		#RESULTS[juncid]['annostatus'] = ancode
+		ANNSTATUS[juncid]['annostatus'] = ancode
+	print "Here is the annotation status breakdown of the detected junctions:"
+	crossTabulate(stati)
+	return ANNSTATUS
+
+
+################################
+################################
+################################
+################################
+################################
+def parse_options():
+	parser = argparse.ArgumentParser(description='Parse a bam file.')
+	parser.add_argument('-i', help='bam file name', action="store", dest="i")
+	parser.add_argument('-g', help='referenceGTF', action="store", dest="g")
+	parser.add_argument('-m', help='What method to run', action="store", dest="m", default="all")
+	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
+	parser.add_argument('-o', help='outfile', action="store", dest="o", default="./junctions_out/")
+	parser.add_argument('-filter', help='T/F Filter junctions', action="store", dest="filter", default="T")
+	args = parser.parse_args()
+	# See here for argparse instructions:
+	# http://docs.python.org/dev/library/argparse.html
+	return args
+
+# Initialize parameters
+args = parse_options()
+bamfile = args.i
+outfile = args.o
+gtffile = args.g
+method = args.m
+fastafile = args.f
+filter = args.filter
+
+# Prepare output directory
+output_dir = outfile
+spanki_utils.prepare_output_dir(output_dir)
+
+# Prepare output file names
+juncs_out_name = output_dir + "/juncs.list"
+juncs_out = open(juncs_out_name, "w")
+juncs_all_out_name = output_dir + "/juncs.all"
+juncs_all_out = open(juncs_all_out_name, "w")
+ann_summary_out_name = output_dir + "/annotation_summary.txt"
+ann_summary = open(ann_summary_out_name, "w")
+donor_out_name = output_dir + "/donors.txt"
+donor_out = open(donor_out_name, "w")
+log_out_name = output_dir + "/logs/log.txt"
+log_out = open(log_out_name, "w")
+	
+def main():
+	
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Checking that required files are present
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	if not fastafile:
+		quit("Need to specify a fasta file")
+	if not gtffile:
+		quit("Need to specify a gtf file")
+		
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Checking what type of run to do
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	validmethods = ["quant","eval","test","all"]
+	if method in validmethods:
+		print >> sys.stderr, "[**   Setup   **] Running in '", method, "' mode"
+	else:
+		quit("[!!] Invalid method, choose 'eval' or 'quant'")
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Writing paramters to log file
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	print >> log_out, "[%s] Run started" % (spanki_utils.timestamp())
+	print >> log_out, "Method option:", method
+	print >> log_out, "Fastafile:", fastafile
+	print >> log_out, "Reference GTF file:", gtffile
+	print >> log_out, "Alignments:", bamfile
+
+
+	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Intializing the reference
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# You need the gtf file, and the fasta file
+ 	lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
+  	## Note that you now have a reference called ref.bam, and a lookup dict
+	tmp_dir = output_dir + "/tmp/"
+ 	reffile = tmp_dir + "/ref.bam"
+
+	################################
+	################################
+	#  Loading data
+	################################
+	################################
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Initializing results hash
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#global RESULTS
+	#RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Load a fasta file
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	global f
+	# Opening fasta filehandle
+	print >> sys.stderr, "[%s] Opening fasta file" % (spanki_utils.timestamp())
+	f = Fasta(fastafile)
+	fastachr = set(sorted(f.keys()))
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Loading read alignments
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Load bamfiles
+	print >> sys.stderr, "[%s] Reading alignments from %s" % (spanki_utils.timestamp(), bamfile)
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Parse the read alignments
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Parse the bam file
+	## Get a table of junctions, table of donors etc.
+	bamfh = pysam.Samfile( bamfile, "rb" )
+	bamchr = set(bamfh.references)
+	bam_not_fasta = bamchr.difference(fastachr)
+	fasta_not_bam = fastachr.difference(bamchr)
+	if len(bam_not_fasta) > 0:
+		print >> sys.stderr, "[%s] ERROR: Chromosomes in bam file header missing from fasta reference:" % (spanki_utils.timestamp()) 
+		print >> sys.stderr, ','.join(bam_not_fasta)
+		quit()
+	if len(fasta_not_bam) > 0:
+		print >> sys.stderr, "[%s] Warning: Chromosomes in fasta ref that have no alignments in bam:" % (spanki_utils.timestamp()) 
+		print >> sys.stderr, ','.join(fasta_not_bam)
+		
+	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
+	
+
+	bamfh.close()
+	myjuncs = JTAB.keys()
+	myjuncs.sort()
+
+	# Coverage, indexed by donor
+	# NEWDTAB[donid][accid] 	
+	# Coverage, indexed by offset (For entropy calc)
+	#STAB[juncid][offset] (count)
+	# Count total junction spanning reads
+	#JTAB[juncid] (count)
+	
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Print junction list to the output directory
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Ks = JTAB.keys()
+	for key in Ks:
+		print >> juncs_out, key
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Load an annotation, flattened as bam
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
+ 	reffh = pysam.Samfile( reffile, "rb" )
+	edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
+	reffh.close()
+	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
+
+	
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Make gene model type definitions 
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ 	print >> sys.stderr, "[%s] Getting gene model annotation codes" % (spanki_utils.timestamp())
+ 	reffh = pysam.Samfile( reffile, "rb" )
+	GENES = getGeneAnnotationCodes(reffh,lookup)
+	reffh.close()
+ 	print >> sys.stderr, "[%s] Done getting gene model annotation codes" % (spanki_utils.timestamp())
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Prototype models for sequence comparison
+ 	# of novel juncs to annotated juncs
+ 	# (Not implemented yet)
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+	if (method == "test"):
+		refseqs = makeRefList(refjuncs,f)
+		# Testing iterative search
+		allmind = dict(zip(range(0,20), [0] * 20))
+		unjuncs = 0
+		print >> sys.stderr, "[%s] starting seq comp of novel juncs %s" % (spanki_utils.timestamp(), output_dir)
+		
+		for juncid in myjuncs:
+			if juncid not in refjuncs:
+				#print juncid, "not in reference, checking..."
+				unjuncs += 1
+				mind = 20
+				chr = juncid.split(':')[0]
+				coords = juncid.split(':')[1]
+				strand = juncid.split(':')[2]
+				#print juncid, strand
+				start = int(coords.split('_')[0]) - 1
+				end = int(coords.split('_')[1])
+				if strand == '+':
+					fiveprimeflank = Seq(f[chr][start-10:start], IUPAC.unambiguous_dna)
+					threeprimeflank = Seq(f[chr][end:end+10], IUPAC.unambiguous_dna)
+				else:
+					fiveprimeflank = Seq(f[chr][end:end+10], IUPAC.unambiguous_dna)
+					threeprimeflank = Seq(f[chr][start-10:start], IUPAC.unambiguous_dna)
+				for seq in refseqs:
+					h1 = hamming_distance(seq,fiveprimeflank + threeprimeflank)
+					h2 = hamming_distance(seq,fiveprimeflank.reverse_complement() + threeprimeflank.reverse_complement())
+					if (h1 < mind): 
+						mind = h1
+					if (h2 < mind):
+						mind = h2
+				print juncid, mind
+				allmind[mind] += 1
+		
+		print "There were ", unjuncs, "unannotated juncs"
+		for i in allmind.keys():
+			print i, allmind[i]
+
+		print >> sys.stderr, "[%s] Done seq comp of novel juncs %s" % (spanki_utils.timestamp(), output_dir)
+		quit()
+
+	#############################################
+	#############################################
+	#  Analyses
+	#
+	##############################################
+	##############################################
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Extract sequence info for each join
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	
+ 	INTSEQ = intron_sequence(myjuncs,f)
+	print >> sys.stderr, "[%s] Extracted intron sequence" % (spanki_utils.timestamp())
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Try gene assignment of unannotated joins
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	print >> sys.stderr, "[%s] Getting gene assignments for unannotated joins" % (spanki_utils.timestamp())
+	reffh = pysam.Samfile( reffile, "rb" )
+	GENEASSIGN, ANNOSTATUS = getJoinGeneAssign(myjuncs,refjuncs,edgedict,reffh,lookup)
+ 	reffh.close()
+
+ 	if (method in ["eval","all"]):
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Entropy
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Now calculate entropy, print vals table
+		print >> sys.stderr, "[%s] Calculating alignment entropy" % (spanki_utils.timestamp())
+		ENTROPIES = alignment_entropies(STAB,JTAB)
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Get Hamming distances for each join
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~		
+		print >> sys.stderr, "[%s] Getting intron / anchor similarity" % (spanki_utils.timestamp())
+		ANCHAM = anchor_hamming(myjuncs,f)
+
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Filtering out some junctions
+ 	# If you filter any junctions out,
+ 	# then they can't be included in neighbor coverages
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	if (filter == "T"):
+		filtered_count = 0
+		rej_juncs_out_name = output_dir + "/rejected_juncs.txt"
+		rej_juncs_out = open(rej_juncs_out_name, "w")
+		print >> rej_juncs_out, "juncid\tintron_size\tdinucleotide\tannostatus\tgeneassign"
+		valid_motifs = ["GT..AG","GC..AG","AT..AC"]
+		juncs_to_evaluate = list(myjuncs)
+		for juncid in juncs_to_evaluate:
+			j1 = Junctionid(juncid)
+			#coords = juncid.split(':')[1]		
+			#start = int(coords.split('_')[0]) - 1
+			#end = int(coords.split('_')[1])
+			#intronsize = abs(start - end)
+			if ANNOSTATUS[juncid] != "an":
+				if (j1.intronsize < 50000) and (str(INTSEQ[juncid]['dinucleotide']) in valid_motifs) and (j1.intronsize > 42) and (GENEASSIGN[juncid]['geneassign'] != "ambiguous"):
+					pass
+				else:
+					filtered_count += 1
+					myjuncs.remove(juncid)
+					NEWDTAB[j1.donid][j1.accid] = 0
+					print >> rej_juncs_out, juncid, j1.intronsize, INTSEQ[juncid]['dinucleotide'], ANNOSTATUS[juncid], GENEASSIGN[juncid]['geneassign']
+		print >> sys.stderr, "[%s] Filtered" % (spanki_utils.timestamp()), filtered_count, "junctions" 
+	else:
+		print >> sys.stderr, "[%s] Stringent junction filter not applied" % (spanki_utils.timestamp())
+
+	if (method in ["quant","all"]):
+
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Getting donor-acceptor transition probs
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# The below works, but I should simplify
+		print >> sys.stderr, "[%s] Getting D-A transition probs and neighbor coverage" % (spanki_utils.timestamp())
+		DATRANS,NEIGHBORCOV,joinsbyedge = donor_acceptor_transition(NEWDTAB,myjuncs)
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# IRT
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		bamfh = pysam.Samfile( bamfile, "rb" )
+		#for alignedread in samfile:
+		# Need some kind of iterator to getread length from first alignment in sam
+		print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanki_utils.timestamp())
+		IRT = intron_readthrough(myjuncs,bamfh)
+		bamfh.close()
+		print >> sys.stderr, "[%s] Done getting IRT" % (spanki_utils.timestamp())
+
+	#for gene in GENES.keys():
+	#	print gene, GENES[gene]
+
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Add gene-level gene-model annotation codes 
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#print >> sys.stderr, "[%s] Adding gene-model codes to results hash %s" % (spanki_utils.timestamp(), output_dir)
+	
+	GENEINFO = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for juncid in myjuncs:
+		geneid = GENEASSIGN[juncid]['geneassign']
+		if geneid in ["ambiguous","none"]:
+			GENEINFO[juncid]['gmcode'] = "-"
+			GENEINFO[juncid]['regcode'] = "-"
+		else:
+			#print GENES[geneid]['gmcode']
+			GENEINFO[juncid]['gmcode'] = GENES[geneid]['gmcode']
+			GENEINFO[juncid]['regcode'] = GENES[geneid]['regcode']
+	print >> sys.stderr, "[%s] Done adding gene-model codes to results hash" % (spanki_utils.timestamp())
+	
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Print overall summary table
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	# Automatically, without regard to field order:
+ 	# printDict(RESULTS,juncs_all_out)
+	# or manually, to get the order you want
+	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Summarizing annotation statuses
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	stati = []
+	for juncid in ANNOSTATUS.keys():
+		stati.append(ANNOSTATUS[juncid])
+	print >> ann_summary, "Annotation status breakdown of the detected junctions:"
+	crossTabulate(stati,ann_summary)
+
+
+	myjuncs.sort()
+
+	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
+	if (method == "eval"):
+		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['cov'] = JTAB[juncid]
+			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
+			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
+			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
+			RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
+			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
+			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
+			RESULTS[juncid]['offsets'] = ENTROPIES[juncid]['offsets']
+			RESULTS[juncid]['entropy'] = ENTROPIES[juncid]['entropy']
+			RESULTS[juncid]['hamming3'] = ANCHAM[juncid]['hamming3']
+			RESULTS[juncid]['hamming5'] = ANCHAM[juncid]['hamming5']
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['MAXmmes'] = MMES[juncid]['MAXmmes']
+			RESULTS[juncid]['MAXminanc'] = MMES[juncid]['MAXminanc']
+	elif (method == "quant"):
+		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','lirt','rirt','irt','datrans','dinucleotide','intron_size','dncov','ancov']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['cov'] = JTAB[juncid]
+			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
+			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
+			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
+			RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
+			RESULTS[juncid]['lirt'] = IRT[juncid]['lirt']
+			RESULTS[juncid]['rirt'] = IRT[juncid]['rirt']
+			RESULTS[juncid]['irt'] = IRT[juncid]['irt']
+			RESULTS[juncid]['datrans'] = DATRANS[juncid]['datrans']
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['dncov'] = NEIGHBORCOV[juncid]['dncov']
+			RESULTS[juncid]['ancov'] = NEIGHBORCOV[juncid]['ancov']
+	elif (method == "all"):
+		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['cov'] = JTAB[juncid]
+			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
+			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
+			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
+			RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
+			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
+			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
+			RESULTS[juncid]['offsets'] = ENTROPIES[juncid]['offsets']
+			RESULTS[juncid]['entropy'] = ENTROPIES[juncid]['entropy']
+			RESULTS[juncid]['hamming3'] = ANCHAM[juncid]['hamming3']
+			RESULTS[juncid]['hamming5'] = ANCHAM[juncid]['hamming5']
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['MAXmmes'] = MMES[juncid]['MAXmmes']
+			RESULTS[juncid]['MAXminanc'] = MMES[juncid]['MAXminanc']
+			RESULTS[juncid]['lirt'] = IRT[juncid]['lirt']
+			RESULTS[juncid]['rirt'] = IRT[juncid]['rirt']
+			RESULTS[juncid]['irt'] = IRT[juncid]['irt']
+			RESULTS[juncid]['datrans'] = DATRANS[juncid]['datrans']
+			RESULTS[juncid]['dncov'] = NEIGHBORCOV[juncid]['dncov']
+			RESULTS[juncid]['ancov'] = NEIGHBORCOV[juncid]['ancov']
+			
+	#printDict(RESULTS,juncs_all_out)
+
+	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
+
+					
+	print >> donor_out, "donor\tcoverage\tjoins"
+	Ks = NEWDTAB.keys()
+	Ks.sort()
+	for x in Ks:
+		dcov = 0
+		for y in NEWDTAB[x].keys():
+			juncid = str(x) + "_" + str(y)
+			if ((juncid + ":+") in myjuncs) or ((juncid + ":-") in myjuncs):
+				dcov += NEWDTAB[x][y]
+		if joinsbyedge[x] > 0:
+			print >> donor_out, '\t'.join(map(str,[x,dcov,joinsbyedge[x]]))
+
+	print >> log_out, "[%s] Run completed" % (spanki_utils.timestamp())
+	
+	
+
+if __name__ == "__main__":
+    sys.exit(main())
+
