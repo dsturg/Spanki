@@ -21,7 +21,15 @@ import math
 import os
 import collections
 
+from pyfasta import Fasta
 from datetime import datetime, date
+
+# Biopython, for revcomp
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
+
+# Custom modules to import:
+import spanki.spanki_parse_utils as spanki_parse_utils
 import spanki.spanki_utils as spanki_utils
 
 class Junctionid:
@@ -43,13 +51,29 @@ class Junctionid:
 		#self.accid = str(coords.split('_')[0])
 		if self.strand == "+":
 			self.donid = chr + ":" + str(start)
+			self.donor = start
 			self.accid = chr + ":" + str(end)
+			self.donor = start
+			self.acceptor = end
 		elif self.strand == "-":
 			self.accid = chr + ":" + str(start)
 			self.donid = chr + ":" + str(end)
+			self.donor = end
+			self.acceptor = start
 		else:
 			print "strand character is", self.strand
 			quit("Don't recognize strand")
+	def display(self):
+		print self.intronsize
+		print self.chr
+		print self.donid
+		#print self.dastring
+		#print "start", self.start
+		#print "L read anchor   ", self.left_read_anchor
+		#print "L genome aligned", self.left_genome_aligned
+		#print "R read anchor   ", self.right_read_anchor
+		#print "R genome aligned", self.right_genome_aligned
+		#print "READ            ", self.readseq
 			
 class JuncBasic:
 	"""
@@ -384,6 +408,33 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 				NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[y]
 	return DATRANS, NEIGHBORCOV, joinsbyedge
 
+def find_nag(myseq):
+	#IRT = collections.defaultdict(lambda : collections.defaultdict(dict))
+	'''
+	Find nag acceptors
+	'''
+	nagstring = ""
+	print myseq
+	nagstarts = []
+	nagseqs = []
+
+	p = re.compile('[ACGT]AG')
+	#nags = p.findall(str(myseq))
+	for nag in p.finditer(str(myseq)):
+		print nag.start(), nag.group()
+		nagstarts.append(str(nag.start()))
+		nagseqs.append(nag.group())
+		#nagstring = nagstring + "," + nag
+
+	#p = re.compile("[a-z]")
+	#for m in p.finditer('a1b2c3d4'):
+    #print m.start(), m.group()
+	if (nagseqs):
+		nagstring = ','.join(nagseqs) + ";" + ','.join(nagstarts)
+	else:
+		nagstring = "-"
+	return nagstring
+
 ################################
 ################################
 ################################
@@ -396,6 +447,7 @@ def parse_options():
 	parser.add_argument('-jlist', help='junctionlist', action="store", dest="jlist")
 	parser.add_argument('-jtab', help='junctiontab', action="store", dest="jtab")
 	parser.add_argument('-o', help='outfile', action="store", dest="o", default="curated_juncs")
+	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
 
 	args = parser.parse_args()
 	return args
@@ -407,7 +459,7 @@ anchorsize = args.a
 jlist = args.jlist
 jtab = args.jtab
 outfile = args.o
-
+fastafile = args.f
 
 #~~~~~~~~~~~~~~~~~~~
 # Prepare output directory
@@ -436,6 +488,15 @@ def main():
 	# SVM recomputes
 	# Splice site strength? ppt? 
 
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Load a fasta file
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	global f
+	# Opening fasta filehandle
+	print >> sys.stderr, "[%s] Opening fasta file" % (spanki_utils.timestamp())
+	f = Fasta(fastafile)
+	fastachr = set(sorted(f.keys()))
+	print fastachr
 
 	#~~~~~~~~~~~~~~~~~~~
 	# Load reference junction list
@@ -448,9 +509,38 @@ def main():
 
 	
 	print >> sys.stderr, len(myjuncs), "in junction list"
-	#print "Getting irt for these juncs:"
-	#for x in myjuncs:
-	#	print x
+
+	updonor = 20
+	downdonor = 2
+	upacceptor = 2
+	downacceptor = 20
+	
+
+	for x in myjuncs:
+		print x
+		j1 = Junctionid(x)
+		j1.display()
+		if j1.strand == "+":
+			#print Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
+			tempseq = Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
+			#print "***", tempseq.translate()
+			
+			#print Seq(f[j1.chr][j1.donor:j1.donor + downdonor], IUPAC.unambiguous_dna)
+			#print Seq(f[j1.chr][j1.acceptor-upacceptor:j1.acceptor], IUPAC.unambiguous_dna)
+			#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna)
+			nagstring = find_nag(Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna))
+			print nagstring
+		elif j1.strand == "-":
+			pass
+			#print Seq(f[j1.chr][j1.donor:j1.donor + updonor], IUPAC.unambiguous_dna).reverse_complement()
+			#print Seq(f[j1.chr][j1.donor - downdonor:j1.donor], IUPAC.unambiguous_dna).reverse_complement()
+			#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + upacceptor], IUPAC.unambiguous_dna).reverse_complement()
+			#print Seq(f[j1.chr][j1.acceptor-downacceptor:j1.acceptor], IUPAC.unambiguous_dna).reverse_complement()
+		else:
+			quit("Don't recognize strand")
+
+			#fiveprimeflank = fiveprimeflank.reverse_complement()
+	quit("Done")
 	
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# IRT
