@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-spankijunc.py
+spankijunc
 
 This takes BAM files as input, and calculates a variety of metrics
-about junction alignments. 
+about junction alignments. Outputs a jtab
 
 """
 from __future__ import division 
@@ -901,21 +901,58 @@ def annotation_status(myjuncs,refjuncs,edgedict):
 ################################
 ################################
 ################################
-def parse_options():
-	parser = argparse.ArgumentParser(description='Parse a bam file.')
-	parser.add_argument('-i', help='bam file name', action="store", dest="i")
-	parser.add_argument('-g', help='referenceGTF', action="store", dest="g")
-	parser.add_argument('-m', help='What method to run', action="store", dest="m", default="all")
-	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
-	parser.add_argument('-o', help='outfile', action="store", dest="o", default="./junctions_out/")
-	parser.add_argument('-filter', help='T/F Filter junctions', action="store", dest="filter", default="T")
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        #sys.stderr.write(desc)
+        self.print_help()
+        sys.exit(2)
+
+def parse_options(desc):
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.add_argument('-i', help='BAM file name', action="store", dest="i")
+	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
+	parser.add_argument('-m', action="store", dest="m", default="all",
+		help="What method to run:\n"
+		"\t'eval'  - Evaluates alignments, does not calculate IRT\n"
+		"\t'quant' - Quantifies coverage and IRT, but not entropy and MMES\n"
+		"\t'all'   - Performs all analyses (default)")
+	parser.add_argument('-f', action="store", dest="f",
+		help="Fasta file\n"
+		"Must have same chromosomes as BAM and GTF")
+	parser.add_argument('-filter', action="store", dest="filter", default="F", 
+		help="Filter junctions (T/F)\n"
+		"T - Do not report unannotated junctions with ambiguous gene assignment or high exon-intron similarity\n"
+		"F - Report all junctions (default)")
+	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
 	args = parser.parse_args()
 	# See here for argparse instructions:
 	# http://docs.python.org/dev/library/argparse.html
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
 	return args
 
 # Initialize parameters
-args = parse_options()
+desc = '''
+-----------------------------------------------------------------
+spankijunc - Evaluate / quantify junction alignments 
+
+Takes a BAM file, and outputs a jtab with junction results.
+
+From a reference annotation in GTF format, it will generate 
+gene assignments for each junction, and codes for each
+gene that specifies the number of and type of transcripts.
+
+NOTE:  Spankijunc requires a reference fasta.  The reference
+fasta, GTF, and BAM file must have matching chromosomes. In
+other words, an alignment in the BAM must reference a chromosome
+that is in the reference fasta
+-----------------------------------------------------------------
+'''
+
+args = parse_options(desc)
+
 bamfile = args.i
 outfile = args.o
 gtffile = args.g

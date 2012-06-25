@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-splicecomp.py
+splicecomp
 
 Fisher exact tests on spicing event data
 """
@@ -65,16 +65,37 @@ def print_dict_sorted_ordered(mydict,fout,sortfield,fieldorder,keyname):
 			vals.append(mydict[x][field])
 		print >> fout, x, '\t', '\t'.join(map(str,vals))
 
-def parse_options():
-	parser = argparse.ArgumentParser(description='Compile asta data.')
-	parser.add_argument('-a', help='tab1', action="store", dest="a")
-	parser.add_argument('-b', help='tab2', action="store", dest="b")
-	parser.add_argument('-o', help='output file name', action="store", dest="o", default="splicecomp_out")
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        #sys.stderr.write(desc)
+        self.print_help()
+        sys.exit(2)
+
+def parse_options(desc):
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.add_argument('-a', help='table A', action="store", dest="a")
+	parser.add_argument('-b', help='table B', action="store", dest="b")
+	parser.add_argument('-o', help="Output directory, default='splicecomp_out'", action="store", dest="o", default="splicecomp_out")
+	#parser.add_argument('-o', help='output file name', action="store", dest="o", default="astacomp.out")
 	args = parser.parse_args()
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
 	return args
 
-# initialize parameters
-args = parse_options()
+# Initialize parameters
+desc = '''
+-----------------------------------------------------------------
+splicecomp - Pairwise comparison of splicing events
+
+Takes two tables (a and b) of quantified events (astatabs, from
+the spankisplice program).  Performs Fishers' Exact Tests, followed
+by Benjamini and Hochberg FDR correction.
+-----------------------------------------------------------------
+'''
+
+args = parse_options(desc)
 tabfile1 = args.a
 tabfile2 = args.b
 outfile = args.o

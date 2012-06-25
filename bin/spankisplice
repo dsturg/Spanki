@@ -558,28 +558,56 @@ def uniq(seq):
 		keys[e] = 1 
 	return keys.keys()
 
-def parse_options():
-	parser = argparse.ArgumentParser(description='Compile asta data.')
-	parser.add_argument('-o', help='outfile', action="store", dest="o", default="./astatools_out/")
-	parser.add_argument('-r', help='reference', action="store", dest="r")
-	parser.add_argument('-g', help='referenceGTF', action="store", dest="g")
-	parser.add_argument('-j', help='junction data', action="store", dest="j")
-	parser.add_argument('-a', help='asta defs', action="store", dest="a")
-	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
-	#parser.add_argument('-c', help='cufflinks output', action="store", dest="c", default="/Users/davidsturgill/Desktop/doa_local/freeze_jun11_bylane/R57L5_jun11_g1/cuff_BDGP/isoforms.fpkm_tracking")
-	parser.add_argument('-c', help='cufflinks output', action="store", dest="c")
+
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        #sys.stderr.write(desc)
+        self.print_help()
+        sys.exit(2)
+
+def parse_options(desc):
+	#parser = argparse.ArgumentParser(description=desc)
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	#parser.add_argument('-r', help='reference', action="store", dest="r")
+	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
+	parser.add_argument('-a', action="store", dest="a",
+		help="AStalavista definitions\n"
+		"Generated from the reference GTF you are using")
+	parser.add_argument('-jtab', action="store", dest="jtab", 
+		help="junctiontab (jtab)\n"
+		"From spankijunc or merge_jtabs")
+	parser.add_argument('-f', action="store", dest="f",
+		help="Fasta file\n"
+		"Must have same chromosomes as GTF")
+	parser.add_argument('-c', action="store", dest="f",
+		help="Cufflinks output\n"
+		"The isoforms.fpkm_tracking file, to extract FPKMs (optional)")
+	parser.add_argument('-o', help="Output directory, default='spankisplice_out'", action="store", dest="o", default="spankisplice_out")
 	args = parser.parse_args()
-# See here for argparse instructions:
-# http://docs.python.org/dev/library/argparse.html
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
 	return args
 
-# initialize parameters
-# Do it here, so it's global
-args = parse_options()
+# Initialize parameters
+desc = '''
+-----------------------------------------------------------------
+spankisplice - Quantify splicing events in a sample
+
+Input junction coverage, AStalavista splicing definitions (Sammeth et. al)
+Output compiled data by event.
+
+To build AStalavista event definitions, see here:
+http://genome.crg.es/astalavista/
+-----------------------------------------------------------------
+'''
+
+args = parse_options(desc)
 outfile = args.o
-reffile = args.r
+#reffile = args.r
 gtffile = args.g
-jfile = args.j
+jfile = args.jtab
 cfile = args.c
 astafile = args.a
 fastafile = args.f
@@ -609,7 +637,7 @@ def main():
 	if not fastafile:
 		quit("Need to specify a fasta file")
 	if not gtffile:
-		quit("Need to specify a fasta file")
+		quit("Need to specify a gtf file")
 		
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Intializing the reference

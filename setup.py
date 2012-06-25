@@ -14,7 +14,7 @@ setup(
         packages = ['spanki'],
         package_data={'spanki': ['data/*.txt']},
         include_package_data=True,
-   		scripts = ['bin/astacomp','bin/junccomp','bin/merge_jtabs_all','bin/sim_transcripts','bin/spankijunc','bin/spankisplice','bin/splicecomp','bin/quickjunc','bin/simrnaseq_make_models'],
+   		scripts = ['bin/junccomp','bin/merge_jtabs','bin/sim_transcripts','bin/spankijunc','bin/spankisplice','bin/splicecomp','bin/quickjunc','bin/simrnaseq_make_models','bin/make_curated_jtab'],
         author='David Sturgill',
         description="A splicing analysis toolkit",
         author_email='davidsturgill@niddk.nih.gov',

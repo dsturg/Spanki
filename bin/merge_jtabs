@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+merge_jtabs_all
+
+Combine junction coverages for multiple samples
+
+"""
+
+import re
+import sys
+import csv
+import collections
+import time
+
+
+def readtabs(myfile):
+	"""
+	Makes single junction table
+	"""
+	JTAB = collections.defaultdict(lambda : collections.defaultdict(dict))
+	lines = csv.reader(open(myfile, 'rb'), delimiter='\t')
+	linecount = 0
+	for line in lines:
+		if (linecount < 1):
+			keys = line
+		elif len(line) > 0: 
+			values = line
+			linedict = dict(zip(keys, values))
+			juncid = str(linedict['juncid']).rstrip(" ")
+			JTAB[juncid] = linedict
+		linecount += 1
+	return JTAB
+
+errormsg = '''
+-----------------------------------------------------------------
+merge_jtabs
+
+Merges multiple jtabs together, summing their junction coverages,
+intron read-though and neighbor coverages.  Prints to stdout.
+
+Usage:
+
+    merge_jtabs rep1/juncs.all,rep2/juncs.all,rep3/juncs.all > sample1_repsmerged.juncs
+-----------------------------------------------------------------
+'''
+
+
+def main():
+	if len(sys.argv) < 2:
+		sys.exit(errormsg)
+   	 
+	jfile = sys.argv[1].split(",")
+
+
+	combined = collections.defaultdict(lambda : collections.defaultdict(dict))
+
+	irtinclude = "T"
+	counter = 0
+	test = 0
+	for i in jfile:
+		counter += 1
+		JTAB = readtabs(i)
+		if (counter < 2):
+			'''
+			Do this for the first junction table
+			'''
+			for juncid in JTAB:
+				combined[juncid] = JTAB[juncid]
+				combined[juncid]['numsamps'] = 1
+		else:
+			for juncid in JTAB:
+				if combined[juncid]:
+					combined[juncid]['numsamps'] += 1
+					combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] )
+					try:
+						combined[juncid]['lirt'] = int(JTAB[juncid]['lirt']) + int(combined[juncid]['lirt'])							
+						combined[juncid]['rirt'] = int(JTAB[juncid]['rirt']) + int(combined[juncid]['rirt'])
+						combined[juncid]['irt'] = int(JTAB[juncid]['irt']) + int(combined[juncid]['irt'])
+						combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )
+						combined[juncid]['ancov'] = int(JTAB[juncid]['ancov']) + int(combined[juncid]['ancov'])
+					except KeyError:
+						'''
+						If the junction tables were run in 'eval' mode, irt will not be available
+						'''
+						irtinclude = "F"
+						pass
+				else:
+					combined[juncid] = JTAB[juncid]
+					combined[juncid]['numsamps'] = 1
+
+	if (irtinclude == "T"):
+		#print "juncid\tgeneassign\tcov\tlirt\trirt\tirt\tdncov\tancov\tnumsamps"			
+		print "juncid\tgeneassign\tannostatus\tintron_size\tgmcode\tregcode\tcov\tlirt\trirt\tirt\tdncov\tancov\tnumsamps"	
+		for juncid in combined.keys():
+			print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['annostatus'], '\t', combined[juncid]['intron_size'], '\t', combined[juncid]['gmcode'], '\t', combined[juncid]['regcode'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['lirt'], '\t', combined[juncid]['rirt'], '\t', combined[juncid]['irt'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
+	else:
+		print "juncid\tgeneassign\tcov\tnumsamps"			
+		for juncid in combined.keys():
+			print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['numsamps']
+	
+
+if __name__ == "__main__":
+    sys.exit(main())
+

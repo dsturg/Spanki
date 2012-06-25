@@ -22,7 +22,7 @@ import os
 import collections
 
 from datetime import datetime, date
-from argparse import RawTextHelpFormatter
+#from argparse import RawTextHelpFormatter
 
 import spanki.spanki_utils as spanki_utils
 
@@ -400,13 +400,19 @@ class MyParser(argparse.ArgumentParser):
 
 def parse_options(desc):
 	#parser = argparse.ArgumentParser(description=desc)
-	parser=MyParser(description=desc, formatter_class=RawTextHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	#parser = argparse.ArgumentParser(description=desc, formatter_class=RawTextHelpFormatter)
-	parser.add_argument('-i', help='bam file name', action="store", dest="i")
-	parser.add_argument('-a', help='anchor size', action="store", type=int, dest="a", default=8)
-	parser.add_argument('-jlist', help='junctionlist', action="store", dest="jlist")
-	parser.add_argument('-jtab', help='junctiontab', action="store", dest="jtab")
-	parser.add_argument('-o', help='outfile', action="store", dest="o", default="curated_juncs")
+	parser.add_argument('-i', help='BAM file name', action="store", dest="i")
+	parser.add_argument('-jlist',action="store", dest="jlist",
+		help="Curated junction list\n"
+		"A table with >= 1 column, with column names\n"
+		"It must have a column named 'juncid'\n"
+		"Any additional columns are carried over to the new jtab ")
+	parser.add_argument('-jtab', action="store", dest="jtab", 
+		help="junctiontab (jtab)\n"
+		"From first pass analysis of the BAM file supplied")
+	parser.add_argument('-a', help='Anchor size, default=8', action="store", type=int, dest="a", default=8)
+	parser.add_argument('-o', help="Output directory, default='curated_juncs'", action="store", dest="o", default="curated_juncs")
 
 	args = parser.parse_args()
 	if len(sys.argv)==1:
@@ -417,17 +423,14 @@ def parse_options(desc):
 # Initialize parameters
 desc = '''
 -----------------------------------------------------------------
-quickjunc_from_junclist
+make_curated_jtab
 
-Takes a table or list of curated junctions, a bam file, and a jtab.
-then calculates IRT and neighbor coverage for junctions that were 
-not detected in the first pass.
-
-Feed it a list of curated junctions
+Takes a table or list of curated junctions, a BAM file, and a jtab.
+It calculates IRT and neighbor coverage for junctions that were 
+not detected in the first pass.  Outputs a new jtab, with results 
+only for each junction in the list of curated junctions.
 -----------------------------------------------------------------
 '''
-
-
 
 args = parse_options(desc)
 bamfile = args.i
@@ -524,18 +527,6 @@ def main():
 	print >> sys.stderr, "[%s] Done getting IRT" % (spanki_utils.timestamp())
 
 
-
-	#for edgeid in covbyedge.keys():
-	#	print edgeid, covbyedge[edgeid]
-		
-
-	# These are the fields you end up with after merging:
-	#juncid	geneassign	cov	lirt	rirt	irt	dncov	ancov	numsamps
-	#chr2L:22427471_22427525:- 	none 	2 	57 	28 	85 	0 	0 	1
-	#chr2R:5702257_5702656:+ 	FBgn0040092 	13 	0 	0 	0 	0 	0 	2
-	#chr2L:11436293_11436415:- 	FBgn0261648 	23 	0 	0 	0 	0 	0 	2
-	#chr2R:9334834_9336812:- 	FBgn0013765 	6 	0 	0 	0 	0 	0 	2
-
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# Now compile the results
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -562,27 +553,6 @@ def main():
 
 	quit("done")
 
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Parse the read alignments
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	# Parse the bam file
-	## Get a table of junctions, table of donors etc.
-	bamfh = pysam.Samfile( bamfile, "rb" )
-	#JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
-	JTAB,UNFILT_JTAB = quickcov(bamfh,anchorsize)
-	bamfh.close()
-	myjuncs = JTAB.keys()
-	myjuncs.sort()
-	
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Print junction list to the output directory
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	print "juncid\tunfilt_cov\tcov"
-	for juncid in myjuncs:
-		print juncid, UNFILT_JTAB[juncid], JTAB[juncid]
-
-	
-	
 
 if __name__ == "__main__":
     sys.exit(main())
