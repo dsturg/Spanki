@@ -960,6 +960,30 @@ method = args.m
 fastafile = args.f
 filter = args.filter
 
+# Checking that input files exist
+if not os.path.exists(bamfile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input bam file **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+if not os.path.exists(gtffile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input gtf file **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+if not os.path.exists(fastafile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input fasta file **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+
+
 # Prepare output directory
 output_dir = outfile
 spanki_utils.prepare_output_dir(output_dir)
@@ -997,7 +1021,7 @@ def main():
 		quit("[!!] Invalid method, choose 'eval' or 'quant'")
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Writing paramters to log file
+ 	# Writing parameters to log file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	print >> log_out, "[%s] Run started" % (spanki_utils.timestamp())

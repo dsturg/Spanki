@@ -580,7 +580,7 @@ def parse_options(desc):
 	parser.add_argument('-f', action="store", dest="f",
 		help="Fasta file\n"
 		"Must have same chromosomes as GTF")
-	parser.add_argument('-c', action="store", dest="f",
+	parser.add_argument('-c', action="store", dest="c",
 		help="Cufflinks output\n"
 		"The isoforms.fpkm_tracking file, to extract FPKMs (optional)")
 	parser.add_argument('-o', help="Output directory, default='spankisplice_out'", action="store", dest="o", default="spankisplice_out")
@@ -611,6 +611,41 @@ jfile = args.jtab
 cfile = args.c
 astafile = args.a
 fastafile = args.f
+
+
+
+# Checking that input files exist
+if not os.path.exists(gtffile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input gtf file **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+if not os.path.exists(fastafile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input fasta file **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+if not os.path.exists(astafile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input asta tab **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+if not os.path.exists(jfile):
+	print >> sys.stderr, "\n******************************************"
+	print >> sys.stderr, "** Error: Could not find input jtab    **"
+	print >> sys.stderr, "******************************************\n\n"	
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser.print_help()
+	exit(1)
+
+
+
 # Prepare output directory
 # Prepare output directory
 output_dir = outfile
