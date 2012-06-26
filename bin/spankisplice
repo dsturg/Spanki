@@ -195,7 +195,6 @@ def geneidsFromTxlist(txlist,lookup):
 	geneids = {}
 	genenames = {}
 	for tx in txlist:
-		#print "** Checking tx ", tx
 		geneids[lookup[tx]["gene_id"]] = 1
 		genenames[lookup[tx]["gene_name"]] = 1
 	gidlist = geneids.keys()
@@ -347,7 +346,7 @@ def parse_asta_defs(line,lookup):
 	txlist2 = txie[1].split('/')
 	txlist = txlist1
 	txlist.extend(txlist2)
-	gnames, gids = geneidsFromTxlist(txlist,lookup)
+	gids, gnames = geneidsFromTxlist(txlist,lookup)
 	
 	eventcode = astacode_to_english(astacode)
 			
@@ -384,8 +383,8 @@ def parse_asta_defs(line,lookup):
 		linedict['txlist1'] = txlist1
 		linedict['txlist2'] = txlist2
 		linedict['eventcode'] = eventcode
-		linedict['gnames'] = gnames
-		linedict['gids'] = gids
+		linedict['gene_name'] = gnames
+		linedict['gene_id'] = gids
 	return linedict
 
 
@@ -479,25 +478,40 @@ def get_coverage(eventdict):
 		inc = sum(join1COV)
 		exc = sum(join2COV)
 		
+		'''
+		June 25, 2012
+		This is where you make the strictu formulation for ALL events
+		Note this should be checked again
+		'''
+		inc_adj = join1COV[0]
+		exc_adj = join2COV[0]
+		
 		if (eventdict[eventid]['eventcode'] == "AltFE") or (eventdict[eventid]['eventcode'] == "AltLE"):
-			inc_adj = join1COV[0]
-			exc_adj = join2COV[0]
+			#inc_adj = join1COV[0]
+			#exc_adj = join2COV[0]
+			inc = join1COV[0]
+			exc = join2COV[0]
 			sites1 = 1
 			sites2 = 1
-		else:
-			inc_adj = inc
-			exc_adj = exc
-		
-		# If you apply the correction by subtraction
-		#inc_adj = sum(join1COV) - join1_adjust
-		#exc_adj = sum(join2COV) - join2_adjust
-		#if (sum(join1COV) >= join1_adjust) and (sum(join2COV) >= join2_adjust):
-		#	adj_ok += 1
 		#else:
-		#	psi_errors += 1
+		#	inc_adj = inc
+		#	exc_adj = exc
+		
+		## If you apply the correction by subtraction
+		##inc_adj = sum(join1COV) - join1_adjust
+		##exc_adj = sum(join2COV) - join2_adjust
+		##if (sum(join1COV) >= join1_adjust) and (sum(join2COV) >= join2_adjust):
+		##	adj_ok += 1
+		##else:
+		##	psi_errors += 1
 		
 		eventdict[eventid]['inc'] = inc
 		eventdict[eventid]['exc'] = exc
+
+
+		'''
+		Sets negative values for inc/exc to zero
+		'''
 
 		if inc_adj > 0: eventdict[eventid]['inc_adj'] = inc_adj
 		else: eventdict[eventid]['inc_adj'] = 0
@@ -509,6 +523,11 @@ def get_coverage(eventdict):
 			psi = (inc / sites1) / ((inc / sites1) + (exc / sites2))
 		except ZeroDivisionError:
 			psi = 0
+
+		'''
+		The adj form is always just one site, so don't divide
+		'''
+
 		try:
 			psi_adj = (inc_adj) / ((inc_adj) + (exc_adj))
 		except ZeroDivisionError:
@@ -523,6 +542,7 @@ def get_coverage(eventdict):
 		tx2 = eventdict[eventid]['txlist2']
 		fpkm1 = 0
 		fpkm2 = 0
+		
 		for tx in tx1:
 			try: 
 				fpkm1 += float(CTAB[tx]['FPKM'])
@@ -547,6 +567,14 @@ def print_output_table(mydict,handle,fieldorder):
 	for myid in sorted(mydict.keys()):
 		vals = []
 		for field in fieldorder:
+			vals.append(mydict[myid][field])
+		print >> handle, myid, "\t", '\t'.join(map(str,vals))
+
+def print_output_table_firstiskey(mydict,handle,fieldorder):
+	print >> handle, '\t'.join(map(str,fieldorder))
+	for myid in sorted(mydict.keys()):
+		vals = []
+		for field in fieldorder[1:]:
 			vals.append(mydict[myid][field])
 		print >> handle, myid, "\t", '\t'.join(map(str,vals))
 
@@ -717,7 +745,13 @@ def main():
 	Expects a  isoforms.fpkm_tracking
 	"""
 	global CTAB
-	CTAB = readCtab(cfile)
+	CTAB = {}
+
+	
+	if cfile:
+		CTAB = readCtab(cfile)
+	
+	#quit()
 	
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Loading asta defs
@@ -866,16 +900,25 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Print final results table
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	if cfile:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
+	else:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj']
 
-	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id',
-	'joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
+
+
+	#if cfile:
+	#	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
+	#else:
+	#	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj']
+	
 	RESULTS = eventdict
-	print_output_table(RESULTS,asta_counts_out,fieldorder)
+	print_output_table_firstiskey(RESULTS,asta_counts_out,fieldorder)
 
-	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id',
+	fieldorder = ['event_id','gene_id','gene_name','eventcode','structure','transcript_id',
 	'joinstring']
 	RESULTS = unassayable_events
-	print_output_table(RESULTS,unassayable_events_out,fieldorder)
+	print_output_table_firstiskey(RESULTS,unassayable_events_out,fieldorder)
 			
 if __name__ == "__main__":
     sys.exit(main())
