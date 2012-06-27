@@ -543,7 +543,20 @@ def intron_sequence_single(juncid,f):
 	return dastring
 
 
-def parse_options():
+################################
+################################
+################################
+################################
+################################
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        #sys.stderr.write(desc)
+        self.print_help()
+        sys.exit(2)
+
+def parse_options(desc):
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	parser = argparse.ArgumentParser(description='Parse a bam file.')
 	parser.add_argument('-i', help='bam file name', action="store", dest="i")
 	parser.add_argument('-a', help='anchor size', action="store", type=int, dest="a", default=8)
@@ -555,10 +568,24 @@ def parse_options():
 	parser.add_argument('-bed', help='BED file', action="store", dest="bed")
 	
 	args = parser.parse_args()
+	# See here for argparse instructions:
+	# http://docs.python.org/dev/library/argparse.html
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
 	return args
 
 # Initialize parameters
-args = parse_options()
+desc = '''
+-----------------------------------------------------------------
+jtools
+
+Performs operations on junctions, and converts between various formats
+
+-----------------------------------------------------------------
+'''
+
+args = parse_options(desc)
 bamfile = args.i
 anchorsize = args.a
 jlist = args.jlist
