@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-quickjunc
+jtools
 
-This takes BAM files as input, and calculates coverage for junctions.
-Calculates total coverage and filtered coverage where
-minimum anchor size >= X
-
-The version quickjunc_from_junclist allows the input of a junction list to quantify from
-
+Performs various operations on junctions, and does
+format conversions
 """
 from __future__ import division 
 
@@ -20,6 +16,9 @@ import csv
 import math
 import os
 import collections
+
+# For counting dastring types 
+from collections import Counter
 
 from pyfasta import Fasta
 from datetime import datetime, date
@@ -565,7 +564,8 @@ def parse_options(desc):
 	parser.add_argument('-o', help='outfile', action="store", dest="o", default="curated_juncs")
 	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
 	parser.add_argument('-gff', help='GFF file', action="store", dest="gff")
-	parser.add_argument('-bed', help='BED file', action="store", dest="bed")
+	parser.add_argument('-juncbed', help='BED file', action="store", dest="juncbed")
+	parser.add_argument('-intronbed', help='BED file', action="store", dest="intronbed")
 	
 	args = parser.parse_args()
 	# See here for argparse instructions:
@@ -592,7 +592,8 @@ jlist = args.jlist
 jtab = args.jtab
 outfile = args.o
 fastafile = args.f
-bedfile = args.bed
+juncbedfile = args.juncbed
+intronbedfile = args.intronbed
 gfffile = args.gff
 #~~~~~~~~~~~~~~~~~~~
 # Prepare output directory
@@ -631,126 +632,166 @@ def main():
 	fastachr = set(sorted(f.keys()))
 	#print fastachr
 
-	#~~~~~~~~~~~~~~~~~~~
-	# Load reference junction list
-	#~~~~~~~~~~~~~~~~~~~
-	reflist = tab_to_dict(jlist)
+	########################################################
+	### Parsing a juncbed file
+	########################################################
+	if (juncbedfile):
 
-	# Find the junctions in jlist that are not in jtab
+		print "juncid\tid\tdastring"
+		print juncbedfile
+		lines = csv.reader(open(juncbedfile, 'rb'), delimiter='\t')
+		gtagcount = 0
+		z = []
+		for line in lines:
+			pattern = re.compile('track')
+			track = pattern.search(line[0])
+			if not track:
+				#print line
+				#print line[0]
+				values = line
+				blocksizes = values[10].split(",")
+				blockstarts = values[11].split(",")
+				chr = values[0]
+				rangestart = int(values[1]) - 1
+				rangeend = int(values[2])
+				strand = values[5]
+				id = values[3]
+				intronstart = rangestart + int(blocksizes[0]) + 2
+				intronend = rangeend - int(blocksizes[1]) 
+				# Or..
+				#intronend = rangestart + int(blocksizes[0]) + int(blockstarts[1])
+			
+				#chrXHet	800	1767	JUNC00000001	2	+	800	1767	255,0,0	2	20,63	0,904
+			
+				intronsize = intronend - intronstart;
+			
+				juncid = chr + ":" + str(intronstart) + "_" + str(intronend) + ":" + strand
+				dastring = intron_sequence_single(juncid,f)
+				z.append(str(dastring))
+				print juncid, values[3], dastring
+		
+		print gtagcount
+		print Counter(z)
+		quit("Done")
+	########################################################
+	### Parsing a intronbed file
+	########################################################
+	#scaffold_12916	13833982	13834044	10
+	#scaffold_12916	13838614	13838676	67
+	#scaffold_12916	13839119	13839204	75
 
-	myjuncs = reflist.keys()
-
+	if (intronbedfile):
+		print "juncid\tid\tdastring"
+		lines = csv.reader(open(intronbedfile, 'rb'), delimiter='\t')
+		for line in lines:
+			pattern = re.compile('track')
+			track = pattern.search(line[0])
+			values = line
+			if not track:
+				chr = values[0]
+				intronstart = int(values[1]) + 1
+				intronend = int(values[2]) - 1
+				strand = "+"
+				id = values[0]
+			
+				intronsize = intronend - intronstart;
+			
+				juncid = chr + ":" + str(intronstart) + "_" + str(intronend) + ":" + strand
+				dastring = intron_sequence_single(juncid,f)
+				
+				print juncid, values[3], dastring
+		
+		
+		quit("Done")
+	########################################################
 
 	########################################################
 	### Converting from another format
 	########################################################
-	#reflist = tab_to_dict(gff)
-	results = collections.defaultdict(lambda : collections.defaultdict(dict))
-	gffdict = gff_to_dict(gfffile)
-	for x in gffdict:
-		#print x
-		#print gffdict[x]
-		if (gffdict[x]['feature_type'] == "exon_junction"):
-			juncid = gffdict[x]['chr'] + ":" + str(int(gffdict[x]['start']) + 1) + "_" + str(int(gffdict[x]['end']) - 1) + ":" + gffdict[x]['strand']
-		elif (gffdict[x]['feature_type'] == "intron"):
-			juncid = gffdict[x]['chr'] + ":" + gffdict[x]['start'] + "_" + gffdict[x]['end'] + ":" + gffdict[x]['strand']
-		dastring = intron_sequence_single(juncid,f)
-		#print dastring
-		results[x]['juncid'] = juncid
-		results[x]['dastring'] = dastring
 
-	print "ID\tjuncid\tdastring"
-	for x in sorted(results.iterkeys()):
-		print x, "\t", results[x]['juncid'], "\t", results[x]['dastring']
-
-	########################################################
-	### Parsing a bed file
-	########################################################
-
-	lines = csv.reader(open(bedfile, 'rb'), delimiter='\t')
-	#linecount = 0
-	for line in lines:
-		#if (linecount < 1):
-		values = line.split("\t")
-		blocksizes = values[10].split(",")
-		blockstarts = values[10].split(",")
-		chr = values[0]
-		rangestart = values[1] - 1
-		rangeend = values[2]
-		strand = values[5]
-		id = values[3]
-		intronstart = rangestart + 
-		#chr4_group3	1015827	1024519	JUNC00024566	7	-	1015827	1024519	16711680	2	60,67,	0,8625,
-
-
-
-	if ($line =~ /chr/) {
-		chomp $line;
-		@f = split /\t+/,$line;
-		@g = split /[\:\_]+/,$f[0];
-		$chromo = $g[0];
-		#$chromo =~ s/chr//;
-		$intronstart = $g[1] - 1;
-		$intronend = $g[2];
-		$strand = $g[3];
-		
-		#print $line,"\n";
-		#print "$chromo\t$start\t$leftend\t$rightstart\t$end\n";
-		#sleep 2;
-		
-		$chromo =~ s/>//;
-			
-		$blocksize1 = 10;
-		$blocksize2 = 10;
-		$offset1 = $rightstart - $start;
-	    #chrXHet	800	1767	JUNC00000001	2	+	800	1767	255,0,0	2	20,63	0,904
+	if gfffile:
 	
-		my $intronsize = $intronend - $intronstart;
+		#reflist = tab_to_dict(gff)
+		results = collections.defaultdict(lambda : collections.defaultdict(dict))
+		gffdict = gff_to_dict(gfffile)
+		for x in gffdict:
+			#print x
+			#print gffdict[x]
+			if (gffdict[x]['feature_type'] == "exon_junction"):
+				juncid = gffdict[x]['chr'] + ":" + str(int(gffdict[x]['start']) + 1) + "_" + str(int(gffdict[x]['end']) - 1) + ":" + gffdict[x]['strand']
+			elif (gffdict[x]['feature_type'] == "intron"):
+				juncid = gffdict[x]['chr'] + ":" + gffdict[x]['start'] + "_" + gffdict[x]['end'] + ":" + gffdict[x]['strand']
+			dastring = intron_sequence_single(juncid,f)
+			#print dastring
+			results[x]['juncid'] = juncid
+			results[x]['dastring'] = dastring
 	
-		print "$chromo\t", $intronstart - 10, "\t", $intronend + 10, "\t", $f[0], "\t", $f[1], "\t";
-		print "$strand\t", $intronstart - 10, "\t", $intronend + 10, "\t255,0,0\t2\t10,10\t";
-		print "0,", $intronsize + 10, "\n";
+		print "ID\tjuncid\tdastring"
+		for x in sorted(results.iterkeys()):
+			print x, "\t", results[x]['juncid'], "\t", results[x]['dastring']
 	
-	
-	}
-	quit("Done")
-	########################################################
+		quit()
+
 	### Below are functions that operate on a junction list
 	########################################################
+
+
+	if jlist:
 	
-	print >> sys.stderr, len(myjuncs), "in junction list"
-
-	updonor = 20
-	downdonor = 2
-	upacceptor = 2
-	downacceptor = 20
+		#~~~~~~~~~~~~~~~~~~~
+		# Load reference junction list
+		#~~~~~~~~~~~~~~~~~~~
+		reflist = tab_to_dict(jlist)
 	
-
-	for x in myjuncs:
-		print x
-		j1 = Junctionid(x)
-		j1.display()
-		if j1.strand == "+":
-			#print Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
-			tempseq = Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
-			#print "***", tempseq.translate()
-			
-			#print Seq(f[j1.chr][j1.donor:j1.donor + downdonor], IUPAC.unambiguous_dna)
-			#print Seq(f[j1.chr][j1.acceptor-upacceptor:j1.acceptor], IUPAC.unambiguous_dna)
-			#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna)
-			nagstring = find_nag(Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna))
-			print nagstring
-		elif j1.strand == "-":
-			pass
-			#print Seq(f[j1.chr][j1.donor:j1.donor + updonor], IUPAC.unambiguous_dna).reverse_complement()
-			#print Seq(f[j1.chr][j1.donor - downdonor:j1.donor], IUPAC.unambiguous_dna).reverse_complement()
-			#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + upacceptor], IUPAC.unambiguous_dna).reverse_complement()
-			#print Seq(f[j1.chr][j1.acceptor-downacceptor:j1.acceptor], IUPAC.unambiguous_dna).reverse_complement()
-		else:
-			quit("Don't recognize strand")
-
-			#fiveprimeflank = fiveprimeflank.reverse_complement()
-	quit("Done")
+		# Find the junctions in jlist that are not in jtab
+	
+		myjuncs = reflist.keys()
+	
+	
+	
+		
+		print >> sys.stderr, len(myjuncs), "in junction list"
+	
+		updonor = 20
+		downdonor = 2
+		upacceptor = 2
+		downacceptor = 20
+		
+	
+		for x in myjuncs:
+			print x
+			j1 = Junctionid(x)
+			j1.display()
+			if j1.strand == "+":
+				#print Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
+				tempseq = Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
+				#print "***", tempseq.translate()
+				
+				#print Seq(f[j1.chr][j1.donor:j1.donor + downdonor], IUPAC.unambiguous_dna)
+				#print Seq(f[j1.chr][j1.acceptor-upacceptor:j1.acceptor], IUPAC.unambiguous_dna)
+				#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna)
+				nagstring = find_nag(Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna))
+				print nagstring
+			elif j1.strand == "-":
+				pass
+				#print Seq(f[j1.chr][j1.donor:j1.donor + updonor], IUPAC.unambiguous_dna).reverse_complement()
+				#print Seq(f[j1.chr][j1.donor - downdonor:j1.donor], IUPAC.unambiguous_dna).reverse_complement()
+				#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + upacceptor], IUPAC.unambiguous_dna).reverse_complement()
+				#print Seq(f[j1.chr][j1.acceptor-downacceptor:j1.acceptor], IUPAC.unambiguous_dna).reverse_complement()
+			else:
+				quit("Don't recognize strand")
+	
+				#fiveprimeflank = fiveprimeflank.reverse_complement()
+		quit("Done")
+	
+	
+	quit()
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Older code that's not used yet
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
 	
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# IRT
