@@ -60,6 +60,7 @@ my $MM_pos_counts;
 my $MM_type_PROBS;
 my $QUAL_PWM;
 my $QUAL_counts;
+my $MM_QUALS;
 
 my $LOGFILE = new FileHandle ">$modeldir/logfile.txt" or die "can't open $modeldir/logfile.txt"; 
 
@@ -82,6 +83,7 @@ $MM_pos_counts = new FileHandle ">$modeldir/mmcounts.txt" or die "can't open $mo
 $MM_type_PROBS = new FileHandle ">$modeldir/mmtypes.txt" or die "can't open $modeldir/mmtypes.txt"; #OUTPUT: mm type frequencies
 $QUAL_PWM = new FileHandle ">$modeldir/qualitiespwm.txt" or die "can't open $modeldir/qualitiespwm.txt"; #OUTPUT: PWM of qual.scores
 $QUAL_counts = new FileHandle ">$modeldir/qualitiescounts.txt" or die "can't open $modeldir/qualitiespwm.txt"; #OUTPUT: PWM of qual.scores
+$MM_QUALS = new FileHandle ">$modeldir/mmquals.txt" or die "can't open $modeldir/mmquals.txt"; #OUTPUT: mm type frequencies
 }
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,7 +106,6 @@ my $MM_total_counts;
 my $MM_total_counts1;
 my $MM_total_counts2;
 
-my $MM_QUALS;
 my $MM_QUALS1;
 my $MM_QUALS2;
 
@@ -256,6 +257,9 @@ while ($line = <BOWTIE_OUT>){       # read in each line of map file
 		   		$mmtype{"$2>$3"} += 1;
 		   		@mmprobs[$mmpos] += 1;
 		   		#print $qualstring, "\t", $mmstring, "\t", $mmpos, "\n";
+		   		#print "qualstring:", $qualstring, "\n";
+		   		#print "mmpos:", $mmpos, "\n";
+		   		#print "Added to hash:  ", substr($qualstring, $mmpos, 1), "\n";
 		   		$mmquals{substr($qualstring, $mmpos, 1)} += 1;
 		   }
 	   }
@@ -359,6 +363,7 @@ foreach $j (keys %mmtype) {
 }
 	
 foreach $j (keys %mmquals) {
+	# Keyed by quality score, eg "F"
 	$MM_QUALS->printf("$j\t$mmquals{$j}\n");
 }
 

@@ -549,9 +549,21 @@ def tab_to_dict(tabfile):
 		linecount += 1
 	return mytab
 
-def parse_options():
-	parser = argparse.ArgumentParser(description='Parse a bam file.')
-	parser.add_argument('-i', help='bam file name', action="store", dest="i")
+################################
+################################
+################################
+################################
+################################
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        #sys.stderr.write(desc)
+        self.print_help()
+        sys.exit(2)
+
+def parse_options(desc):
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	#parser.add_argument('-i', help='bam file name', action="store", dest="i")
 	parser.add_argument('-o', help='outfile', action="store", dest="o", default="./sims_out/")
 	parser.add_argument('-g', help='referenceGTF', action="store", dest="g")
 	parser.add_argument('-t', help='transcript abundances file', action="store", dest="t", default="")
@@ -562,13 +574,36 @@ def parse_options():
 	parser.add_argument('-m', help='model', action="store", dest="m", default="Default")
 	parser.add_argument('-bp', help='model', action="store", type=int, dest="bp", default=76)
 	parser.add_argument('-ir', help='intron_retention', action="store", type=float, dest="ir", default=0.2)
-	args = parser.parse_args()
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
 	return args
 
-# initialize parameters
+# Initialize parameters
+desc = '''
+-----------------------------------------------------------------
+sim_transcripts - Generate simulated RNA-SEQ reads.
 
-args = parse_options()
-bamfile = args.i
+Usage:
+   sim_transcripts -g genemodels.gtf -f genome.fa [options]
+Example:
+   sim_transcripts -o all_tx_sim -g fb_rel5.25.gtf -f dm3.fa -cov 1
+
+This will generate simulated reads for every transcript in the provided
+reference. The number of reads simulated is based on input values of either
+reads per kilobase (rpk) or coverage (cov). In neither of these is provided,
+all transcripts are simulated to 1x coverage. Optionally, a text file can
+be provided that specifies a value for rpk or cov for each transcript.
+Artificial mismatches are inserted according to models based on data from
+external controls (NIST) or from D. melanogaster RNA-SEQ (dm3). The default
+model is weighted random.
+
+NOTE:  sim_transcripts uses built-in models for error profiles 
+-----------------------------------------------------------------
+'''
+
+args = parse_options(desc)
+#bamfile = args.i
 outfile = args.o
 gtffile = args.g
 fastafile = args.f
