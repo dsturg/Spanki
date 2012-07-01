@@ -34,6 +34,32 @@ from datetime import datetime, date
 
 
 
+class Junctionid:
+	"""
+	Base class for a junction, from juncid
+	Expects junction id
+	"""
+	def __init__(self, juncid):
+		chr = juncid.split(':')[0]
+		coords = juncid.split(':')[1]
+		strand = juncid.split(':')[2]
+		start = int(coords.split('_')[0]) - 1
+		end = int(coords.split('_')[1])
+		self.chr = chr
+		self.start = start
+		self.end = end
+		self.strand = strand.strip()
+		self.intronsize = end - start
+		#self.accid = str(coords.split('_')[0])
+		if self.strand == "+":
+			self.donid = chr + ":" + str(start)
+			self.accid = chr + ":" + str(end)
+		elif self.strand == "-":
+			self.accid = chr + ":" + str(start)
+			self.donid = chr + ":" + str(end)
+		else:
+			print "strand character is", self.strand
+			quit("Don't recognize strand")
 
 def GTFtoDict(infn):
     #logging.info("Parsing the GTF file %s." %(infn))
@@ -388,7 +414,13 @@ def parse_asta_defs(line,lookup):
 	return linedict
 
 
-def get_coverage(eventdict):
+def get_coverage(eventdict,DATAB):
+	# Cov each path
+	# joins each path
+	# sites each path
+	# inc (cov / sites) 
+	# exc (cov / sites)
+	
 	#DSX joinid
 	#testid = "chr3R:3761376_3761489:-"
 	psi_errors = 0
@@ -396,11 +428,11 @@ def get_coverage(eventdict):
 	for eventid in eventdict.keys():	
 		cov1 = 0
 		cov2 = 0
-		joins1 = eventdict[eventid]['joins1']
-		joins2 = eventdict[eventid]['joins2']
-		j1 = []
-		j2 = []
-		#print joins1, joins1
+		#joins1 = eventdict[eventid]['joins1']
+		#joins2 = eventdict[eventid]['joins2']
+		joins = eventdict[eventid]['joinstring'].split(";")
+		joins1 = joins[0].split(",")
+		joins2 = joins[1].split(",")
 
 		join1COV = []
 		join2COV = []
@@ -409,6 +441,11 @@ def get_coverage(eventdict):
 
 		for join in joins1:
 			if join == 'irt':
+				'''
+				If a retained intron, get irt in other join(s)
+				Remember that there may bee more than one join in the otherpath!
+				Make number of sites equal to number of joins in other path times 2 
+				'''
 				sites1 = sites2 * 2
 				try:
 					tempcov = 0
@@ -429,120 +466,195 @@ def get_coverage(eventdict):
 			except KeyError:
 				join2COV.append(0)
 	
+		#inc = sum(join1COV)
+		#exc = sum(join2COV)
+		cov1 = sum(join1COV)
+		cov2 = sum(join2COV)
+		inc = cov1 / sites1
+		exc = cov2 / sites2
 		'''
-		# For applying a correction to multiexon interior events
+		Check that number of sites = number of coverage values
+		'''
+		if (sites1 != len(join1COV)) and (sites2 != len(join2COV)):
+			print "Warning: number of sites doesn't match coverage string"
+		############################################################
+		############################################################
+		############################################################
+		'''
+		# Find out if there is coverage to an edge outside the event
+		'''
+		
+		confound_cov1 = 0
+		confound_cov2 = 0
+
+		'''
+		Find junction coverage to edges outside of the 
+		event, in either path
+		'''
+		for juncid in joins1[:-1]:
+			j1 = Junctionid(juncid)
+			covtotal = 0
+			for acceptor in DATAB[j1.donid].keys():
+				if DATAB[j1.donid][acceptor]:
+					covtotal += int(DATAB[j1.donid][acceptor])
+			if covtotal > DATAB[j1.donid][j1.accid]:
+				'''
+				Path 1 has confounding coverage
+				'''
+				confound_cov1 = confound_cov1 + (covtotal - DATAB[j1.donid][j1.accid])
+		for juncid in joins2[:-1]:
+			j1 = Junctionid(juncid)
+			covtotal = 0
+			for acceptor in DATAB[j1.donid].keys():
+				if DATAB[j1.donid][acceptor]:
+					covtotal += int(DATAB[j1.donid][acceptor])
+			if covtotal > DATAB[j1.donid][j1.accid]:
+				'''
+				Path 2 has confounding coverage
+				'''
+				confound_cov2 = confound_cov2 + (covtotal - DATAB[j1.donid][j1.accid])
+				
+		############################################################
+		############################################################
+		############################################################
+
+			
+		'''
+		Find the 'precise' inclusion/exclusion
+		'''
+		#inc_adj = join1COV[0]
+		#exc_adj = join2COV[0]
+		
+		cov1_adj = join1COV[0]
+		cov2_adj = join2COV[0]
+		sites1_adj = 1
+		sites2_adj = 1
+		inc_adj = cov1_adj
+		exc_adj = cov2_adj
+		
+		'''
+		Do this part differently if retained intron
 		'''
 
-		##################################
-		# Alternate version
-		# by subtracting neighbor coverage
-		##################################
-		#interior_events = ["Unclassified","mutexcl","exonskip","skip2exons"]
-		#join1_adjust = 0
-		#join2_adjust = 0
-		#if eventdict[eventid]['eventcode'] in interior_events:
-		#	if (len(joins1) > 1):
-		#		for join in joins1:
-		#			try:
-		#				join1_adjust += int(JTAB[join]['ancov']) 
-		#				join1_adjust += int(JTAB[join]['dncov'])
-		#			except KeyError:
-		#				pass
-		#		try:
-		#			join1_adjust -= int(JTAB[joins1[0]]['dncov']) 
-		#		except:
-		#			pass
-		#		try:
-		#			join1_adjust -= int(JTAB[joins1[-1]]['ancov'])
-		#		except:
-		#			pass
-		#	if (len(joins2) > 1):
-		#		for join in joins2:
-		#			try:
-		#				join2_adjust += int(JTAB[join]['ancov']) 
-		#				join2_adjust += int(JTAB[join]['dncov'])
-		#			except:
-		#				pass
-		#		try:
-		#			if (eventdict[eventid]['strand'] == '+'): join2_adjust -= int(JTAB[joins2[0]]['dncov']) 
-		#			else: join2_adjust -= int(JTAB[joins2[0]]['ancov']) 
-		#		except:
-		#			pass
-		#		try:
-		#			if (eventdict[eventid]['strand'] == '+'): join2_adjust -= int(JTAB[joins2[-1]]['ancov'])
-		#			else: join2_adjust -= int(JTAB[joins2[-1]]['dncov']) 
-		#		except:
-		#			pass
-					
+		if (eventdict[eventid]['eventcode'] == "retintron"):
+			cov1_adj = cov1
+			cov2_adj = cov2
+			sites1_adj = sites1
+			sites2_adj = sites2
+			inc_adj = cov1
+			exc_adj = cov2
 		
-		inc = sum(join1COV)
-		exc = sum(join2COV)
-		
-		'''
-		June 25, 2012
-		This is where you make the strictu formulation for ALL events
-		Note this should be checked again
-		'''
-		inc_adj = join1COV[0]
-		exc_adj = join2COV[0]
-		
-		if (eventdict[eventid]['eventcode'] == "AltFE") or (eventdict[eventid]['eventcode'] == "AltLE"):
+
+
+		#if (eventdict[eventid]['eventcode'] == "AltFE") or (eventdict[eventid]['eventcode'] == "AltLE"):
 			#inc_adj = join1COV[0]
 			#exc_adj = join2COV[0]
-			inc = join1COV[0]
-			exc = join2COV[0]
-			sites1 = 1
-			sites2 = 1
-		#else:
-		#	inc_adj = inc
-		#	exc_adj = exc
-		
-		## If you apply the correction by subtraction
-		##inc_adj = sum(join1COV) - join1_adjust
-		##exc_adj = sum(join2COV) - join2_adjust
-		##if (sum(join1COV) >= join1_adjust) and (sum(join2COV) >= join2_adjust):
-		##	adj_ok += 1
-		##else:
-		##	psi_errors += 1
-		
-		eventdict[eventid]['inc'] = inc
-		eventdict[eventid]['exc'] = exc
-
+		#	inc = join1COV[0]
+		#	exc = join2COV[0]
+		#	sites1 = 1
+		#	sites2 = 1
 
 		'''
-		Sets negative values for inc/exc to zero
+		Calculate psi (for both forms)
 		'''
-
-		if inc_adj > 0: eventdict[eventid]['inc_adj'] = inc_adj
-		else: eventdict[eventid]['inc_adj'] = 0
-
-		if exc_adj > 0: eventdict[eventid]['exc_adj'] = exc_adj
-		else: eventdict[eventid]['exc_adj'] = 0
-
 		try:
 			psi = (inc / sites1) / ((inc / sites1) + (exc / sites2))
 		except ZeroDivisionError:
 			psi = 0
-
-		'''
-		The adj form is always just one site, so don't divide
-		'''
-
 		try:
 			psi_adj = (inc_adj) / ((inc_adj) + (exc_adj))
 		except ZeroDivisionError:
 			psi_adj = 0
 
-		eventdict[eventid]['inc_sites'] = sites1 
-		eventdict[eventid]['exc_sites'] = sites2 
-		eventdict[eventid]['psi'] = "%.3f" % psi
-		eventdict[eventid]['psi_adj'] = "%.3f" % psi_adj
-		
+		joinstring_adj = joins1[0] + ";" + joins2[0]
+
+		###############
+		# Add results to eventdict
+		###############
+
+        #'joinstring','inc_sites','exc_sites','inc','exc', 'psi',		
+		#eventdict[eventid]['inc'] = inc
+		#eventdict[eventid]['exc'] = exc
+		#eventdict[eventid]['inc_sites'] = sites1 
+		#eventdict[eventid]['exc_sites'] = sites2 
+		#eventdict[eventid]['psi'] = "%.3f" % psi
+		#eventdict[eventid]['psi_adj'] = "%.3f" % psi_adj		
+
+		eventdict[eventid]['joinstring_sens'] = eventdict[eventid]['joinstring']
+		eventdict[eventid]['inccov_sens'] = cov1
+		eventdict[eventid]['exccov_sens'] = cov2
+		eventdict[eventid]['totalcov_sens'] = cov1 + cov2
+		eventdict[eventid]['avgcovpersite_sens'] = (inc + exc) / 2
+		eventdict[eventid]['inc_sites_sens'] = sites1 
+		eventdict[eventid]['exc_sites_sens'] = sites2 
+		eventdict[eventid]['inc_sens'] = inc
+		eventdict[eventid]['exc_sens'] = exc
+		eventdict[eventid]['psi_sens'] = "%.3f" % psi
+
+		eventdict[eventid]['confounding_inccov'] = confound_cov1
+		eventdict[eventid]['confounding_exccov'] = confound_cov2
+
+		eventdict[eventid]['joinstring_prec'] = joinstring_adj
+		eventdict[eventid]['inccov_prec'] = cov1_adj
+		eventdict[eventid]['exccov_prec'] = cov2_adj
+		eventdict[eventid]['totalcov_prec'] = cov1_adj + cov2_adj
+		eventdict[eventid]['avgcovpersite_prec'] = (inc_adj + exc_adj) / 2
+		eventdict[eventid]['inc_sites_prec'] = sites1_adj
+		eventdict[eventid]['exc_sites_prec'] = sites2_adj
+		eventdict[eventid]['inc_prec'] = inc_adj
+		eventdict[eventid]['exc_prec'] = exc_adj
+		eventdict[eventid]['psi_prec'] = "%.3f" % psi_adj
+
+		if (confound_cov1 > 0) | (confound_cov2 > 0):
+			eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring_prec']
+			eventdict[eventid]['opt_calc_type'] = "prec"
+			eventdict[eventid]['inccov'] = cov1_adj
+			eventdict[eventid]['exccov'] = cov2_adj
+			eventdict[eventid]['totalcov'] = cov1_adj + cov2_adj
+			eventdict[eventid]['avgcovpersite'] = (inc_adj + exc_adj) / 2
+			eventdict[eventid]['inc_sites'] = sites1_adj
+			eventdict[eventid]['exc_sites'] = sites2_adj
+			eventdict[eventid]['inc'] = inc_adj
+			eventdict[eventid]['exc'] = exc_adj
+			eventdict[eventid]['psi'] = "%.3f" % psi_adj
+		else:
+			eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring_sens']
+			eventdict[eventid]['opt_calc_type'] = "sens"
+			eventdict[eventid]['inccov'] = cov1
+			eventdict[eventid]['exccov'] = cov2
+			eventdict[eventid]['totalcov'] = cov1 + cov2
+			eventdict[eventid]['avgcovpersite'] = (inc + exc) / 2
+			eventdict[eventid]['inc_sites'] = sites1 
+			eventdict[eventid]['exc_sites'] = sites2 
+			eventdict[eventid]['inc'] = inc
+			eventdict[eventid]['exc'] = exc
+			eventdict[eventid]['psi'] = "%.3f" % psi
+
+
+		eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring']
+		eventdict[eventid]['inccov'] = eventdict[eventid]['inccov']
+		eventdict[eventid]['exccov'] = eventdict[eventid]['exccov'] 
+		eventdict[eventid]['totalcov'] = eventdict[eventid]['totalcov']
+		eventdict[eventid]['avgcovpersite'] = eventdict[eventid]['avgcovpersite']
+		eventdict[eventid]['inc_sites'] = eventdict[eventid]['inc_sites']
+		eventdict[eventid]['exc_sites'] = eventdict[eventid]['exc_sites']
+		eventdict[eventid]['inc'] = eventdict[eventid]['inc']
+		eventdict[eventid]['exc'] = eventdict[eventid]['exc']
+		eventdict[eventid]['psi'] = eventdict[eventid]['psi']
+
+
+
+		'''
+		Adding transcripts to event results dict
+		'''	
 		tx1 = eventdict[eventid]['txlist1']
 		tx2 = eventdict[eventid]['txlist2']
-		fpkm1 = 0
-		fpkm2 = 0
 		
+		'''
+		Incorporating FPKMs
+		'''	
+		fpkm1 = 0
+		fpkm2 = 0		
 		for tx in tx1:
 			try: 
 				fpkm1 += float(CTAB[tx]['FPKM'])
@@ -559,8 +671,7 @@ def get_coverage(eventdict):
 			eventdict[eventid]['fpkm_proportion'] = "%.3f" % (fpkm1 / (fpkm1 + fpkm2))
 		except:
 			eventdict[eventid]['fpkm_proportion'] = "Low data"
-	#print "\tErrors:", psi_errors
-	#print "\tOK", adj_ok
+
 	
 def print_output_table(mydict,handle,fieldorder):
 	print >> handle, "id\t", '\t'.join(map(str,fieldorder))
@@ -594,7 +705,7 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
-def parse_options(desc):
+def parseions(desc):
 	#parser = argparse.ArgumentParser(description=desc)
 	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	#parser.add_argument('-r', help='reference', action="store", dest="r")
@@ -631,7 +742,7 @@ http://genome.crg.es/astalavista/
 -----------------------------------------------------------------
 '''
 
-args = parse_options(desc)
+args = parseions(desc)
 outfile = args.o
 #reffile = args.r
 gtffile = args.g
@@ -682,6 +793,15 @@ spanki_utils.prepare_output_dir(output_dir)
 
 asta_counts_out_name = output_dir + "/asta.out"
 asta_counts_out = open(asta_counts_out_name, "w")
+
+asta_counts_out_all_name = output_dir + "/asta_all.out"
+asta_counts_out_all = open(asta_counts_out_all_name, "w")
+
+asta_counts_out_prec_name = output_dir + "/asta_prec.out"
+asta_counts_out_prec = open(asta_counts_out_prec_name, "w")
+
+asta_counts_out_sens_name = output_dir + "/asta_sens.out"
+asta_counts_out_sens = open(asta_counts_out_sens_name, "w")
 
 unassayable_events_counts_out_name = output_dir + "/unassayable_events.out"
 unassayable_events_out = open(unassayable_events_counts_out_name, "w")
@@ -763,6 +883,38 @@ def main():
 	# data look like this:	
 	#{'seqname': 'chr2L', 'end': '9484', 'localization': 'CDS-3UTR_maxCDS', 'degree': '4', 'start': '8193', 'unknown': '.', 'flanks': '8193-,9484)', 'feature': 'as_event', 'gene_id': 'chr2L:7529-9484W', 'source': 'Undefined', 'score': '2.00000', 'sources': 'Undefined,Undefined', 'structure': '0,1^2-', 'splice_chain': ',8589^8668-', 'attribute': 'transcript_id "FBtr0300689,FBtr0300690"; gene_id "chr2L:7529-9484W"; flanks "8193-,9484)"; structure "0,1^2-"; splice_chain ",8589^8668-"; sources "Undefined,Undefined"; dimension "2_2"; degree "4"; localization "CDS-3UTR_maxCDS"; \n', 'transcript_id': 'FBtr0300689,FBtr0300690', 'dimension': '2_2', 'strand': '+'}
 	
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Making a covbyedge hash from input jtab
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	print >> sys.stderr, "[%s] Making a donor/acceptor neighbor coverage hash" % (spanki_utils.timestamp())
+	#print >> sys.stderr, "[%s] There are"  % (spanki_utils.timestamp()), len(keys1), "juncids in the OKlist" % (spanki_utils.timestamp())
+	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
+	DATAB = collections.defaultdict(lambda : collections.defaultdict(dict))
+	
+	#counter = 0
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		'''
+		Only instantiate if coverage > 0
+		'''
+		if (int(JTAB[juncid]['cov']) > 0):	
+			if covbyedge[j1.donid]:
+				covbyedge[j1.donid] += int(JTAB[juncid]['cov'])
+			else:
+				covbyedge[j1.donid] = int(JTAB[juncid]['cov'])
+			if covbyedge[j1.accid]:
+				covbyedge[j1.accid] += int(JTAB[juncid]['cov'])
+			else:
+				covbyedge[j1.accid] = int(JTAB[juncid]['cov'])
+			if DATAB[j1.donid][j1.accid]:
+				DATAB[j1.donid][j1.accid] += int(JTAB[juncid]['cov'])
+			else:
+				DATAB[j1.donid][j1.accid] = int(JTAB[juncid]['cov'])
+
+
+	#for i in covbyedge.keys():
+	#	print i, covbyedge[i]
 
  	########################################
 	########################################
@@ -891,7 +1043,7 @@ def main():
 	# Note than join strings are always sorted 5' to 3', so you can just get coverage of the first one only for 'strict'
 	#
 	
-	get_coverage(eventdict)
+	get_coverage(eventdict,DATAB)
 	# This gets the appropriate coverage,FPKM data for each defined event
 	
 		
@@ -900,12 +1052,18 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Print final results table
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+	'''
+	ALL modes (optimum, sensitive, precise)
+	'''
 	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
+		#fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi','fpkm1','fpkm2','fpkm_proportion']
 	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
 
-
+	#'joinstring','inc_sites','exc_sites','inc','exc', 'psi',
 
 	#if cfile:
 	#	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
@@ -913,7 +1071,49 @@ def main():
 	#	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj']
 	
 	RESULTS = eventdict
+	print_output_table_firstiskey(RESULTS,asta_counts_out_all,fieldorder)
+
+
+	'''
+	sens mode
+	'''
+	if cfile:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','totalcov_sens','avgcovpersite_sens','psi_sens','confounding_inccov','confounding_exccov','fpkm1','fpkm2','fpkm_proportion']
+	else:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov']
+
+	
+	RESULTS = eventdict
+	print_output_table_firstiskey(RESULTS,asta_counts_out_sens,fieldorder)
+
+	'''
+	prec mode
+	'''
+	if cfile:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'fpkm1','fpkm2','fpkm_proportion']
+	else:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'totalcov_prec','avgcovpersite_prec','joinstring_prec','inccov_prec','exccov_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec']
+
+	
+	RESULTS = eventdict
+	print_output_table_firstiskey(RESULTS,asta_counts_out_prec,fieldorder)
+
+	'''
+	opt mode
+	'''
+	if cfile:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+	else:
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
+
+	
+	RESULTS = eventdict
 	print_output_table_firstiskey(RESULTS,asta_counts_out,fieldorder)
+
+
+	'''
+	Print the unassayable events
+	'''
 
 	fieldorder = ['event_id','gene_id','gene_name','eventcode','structure','transcript_id',
 	'joinstring']
