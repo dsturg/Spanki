@@ -107,8 +107,8 @@ spanki_utils.prepare_output_dir(output_dir)
 comp_out_name = output_dir + "/event_compare.out"
 comp_out = open(comp_out_name, "w")
 
-unadj_comp_out_name = output_dir + "/unadjusted_event_compare.out"
-unadj_comp_out = open(unadj_comp_out_name, "w")
+#unadj_comp_out_name = output_dir + "/unadjusted_event_compare.out"
+#unadj_comp_out = open(unadj_comp_out_name, "w")
 
 
 def main():
@@ -133,10 +133,10 @@ def main():
 
 	
 	for event in tab1:
-		p = pvalue(int(tab1[event]['inc']), int(tab1[event]['exc']) , int(tab2[event]['inc']), int(tab2[event]['exc']))
-		padj = pvalue(int(tab1[event]['inc_adj']), int(tab1[event]['exc_adj']) , int(tab2[event]['inc_adj']), int(tab2[event]['exc_adj']))
+		p = pvalue(int(tab1[event]['inccov']), int(tab1[event]['exccov']) , int(tab2[event]['inccov']), int(tab2[event]['exccov']))
+		#padj = pvalue(int(tab1[event]['inc_adj']), int(tab1[event]['exc_adj']) , int(tab2[event]['inc_adj']), int(tab2[event]['exc_adj']))
 		plist.append(p.two_tail)
-		padjlist.append(padj.two_tail)
+		#padjlist.append(padj.two_tail)
 		myresults[event]['gene_name'] = tab1[event]['gene_name']
 		myresults[event]['gene_id'] = tab1[event]['gene_id']
 		myresults[event]['eventcode'] = tab1[event]['eventcode']
@@ -144,25 +144,25 @@ def main():
 		myresults[event]['transcript_id'] = tab1[event]['transcript_id']
 		myresults[event]['joinstring'] = tab1[event]['joinstring']
 		myresults[event]['inc_sites'] = int(tab1[event]['inc_sites'])
-		myresults[event]['exc_sites'] = int(tab1[event]['inc_sites'])
-		myresults[event]['inc1'] = int(tab1[event]['inc'])
-		myresults[event]['exc1'] = int(tab1[event]['exc'])
-		myresults[event]['inc1_adj'] = int(tab1[event]['inc_adj'])
-		myresults[event]['exc1_adj'] = int(tab1[event]['exc_adj'])
+		myresults[event]['exc_sites'] = int(tab1[event]['exc_sites'])
+		myresults[event]['inc1'] = float(tab1[event]['inc'])
+		myresults[event]['exc1'] = float(tab1[event]['exc'])
+		#myresults[event]['inc1_adj'] = int(tab1[event]['inc_adj'])
+		#myresults[event]['exc1_adj'] = int(tab1[event]['exc_adj'])
 		myresults[event]['psi1'] = float(tab1[event]['psi'])
-		myresults[event]['psi1_adj'] = float(tab1[event]['psi_adj'])
+		#myresults[event]['psi1_adj'] = float(tab1[event]['psi_adj'])
 
-		myresults[event]['inc2'] = int(tab2[event]['inc'])
-		myresults[event]['exc2'] = int(tab2[event]['exc'])
-		myresults[event]['inc2_adj'] = int(tab2[event]['inc_adj'])
-		myresults[event]['exc2_adj'] = int(tab2[event]['exc_adj'])
+		myresults[event]['inc2'] = float(tab2[event]['inc'])
+		myresults[event]['exc2'] = float(tab2[event]['exc'])
+		#myresults[event]['inc2_adj'] = int(tab2[event]['inc_adj'])
+		#myresults[event]['exc2_adj'] = int(tab2[event]['exc_adj'])
 		myresults[event]['psi2'] = float(tab2[event]['psi'])
-		myresults[event]['psi2_adj'] = float(tab2[event]['psi_adj'])
+		#myresults[event]['psi2_adj'] = float(tab2[event]['psi_adj'])
 
 		myresults[event]['delta_psi'] = myresults[event]['psi1'] - myresults[event]['psi2'] 
-		myresults[event]['delta_psi_adj'] = myresults[event]['psi1_adj'] - myresults[event]['psi2_adj'] 
+		#myresults[event]['delta_psi_adj'] = myresults[event]['psi1_adj'] - myresults[event]['psi2_adj'] 
 		myresults[event]['pval'] = p.two_tail
-		myresults[event]['pval_adj'] = padj.two_tail
+		#myresults[event]['pval_adj'] = padj.two_tail
 		try: 
 			myresults[event]['fpkm_proportion1'] = tab1[event]['fpkm_proportion']
 		except KeyError:
@@ -192,18 +192,18 @@ def main():
 	for event in myresults:
 		#print >> comp_out, event, myresults[event]['inc1'], myresults[event]['exc1'], myresults[event]['inc2'], myresults[event]['exc2'], myresults[event]['pval'], qconv[myresults[event]['pval']]
 		myresults[event]['qval'] = qconv[myresults[event]['pval']]
-		myresults[event]['qval_adj'] = qadjconv[myresults[event]['pval_adj']]
+		#myresults[event]['qval_adj'] = qadjconv[myresults[event]['pval_adj']]
 
 	'''
 	Output table with PSI adjusted for joins to exons outside the event
 	'''
-	if fpkm > 0:
-		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj','fpkm_proportion1','fpkm_proportion2']
-	else:
-		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj']
+	#if fpkm > 0:
+	#	fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj','fpkm_proportion1','fpkm_proportion2']
+	#else:
+	#	fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj']
 	
-	sortfield = 'pval_adj'
-	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'event_id')
+	#sortfield = 'pval_adj'
+	#print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'event_id')
 
 	'''
 	Output UNadjusted table
@@ -214,7 +214,7 @@ def main():
 		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval']
 	
 	sortfield = 'pval'
-	print_dict_sorted_ordered(myresults,unadj_comp_out,sortfield,fieldorder,'event_id')
+	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'event_id')
 	print "[%s] Run completed" % (spanki_utils.timestamp())
 
 	
