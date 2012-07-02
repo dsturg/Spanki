@@ -147,6 +147,8 @@ def main():
 		myresults[event]['exc_sites'] = int(tab1[event]['exc_sites'])
 		myresults[event]['inc1'] = float(tab1[event]['inc'])
 		myresults[event]['exc1'] = float(tab1[event]['exc'])
+		
+	
 		#myresults[event]['inc1_adj'] = int(tab1[event]['inc_adj'])
 		#myresults[event]['exc1_adj'] = int(tab1[event]['exc_adj'])
 		myresults[event]['psi1'] = float(tab1[event]['psi'])
@@ -160,6 +162,11 @@ def main():
 		#myresults[event]['psi2_adj'] = float(tab2[event]['psi_adj'])
 
 		myresults[event]['delta_psi'] = myresults[event]['psi1'] - myresults[event]['psi2'] 
+
+		myresults[event]['totalcovpersite1'] = float(tab1[event]['inc']) + float(tab1[event]['exc'])
+		myresults[event]['totalcovpersite2'] = float(tab2[event]['inc']) + float(tab2[event]['exc'])
+		myresults[event]['avgcovpersite'] = (myresults[event]['totalcovpersite1'] + myresults[event]['totalcovpersite2']) / 2
+
 		#myresults[event]['delta_psi_adj'] = myresults[event]['psi1_adj'] - myresults[event]['psi2_adj'] 
 		myresults[event]['pval'] = p.two_tail
 		#myresults[event]['pval_adj'] = padj.two_tail
@@ -194,24 +201,14 @@ def main():
 		myresults[event]['qval'] = qconv[myresults[event]['pval']]
 		#myresults[event]['qval_adj'] = qadjconv[myresults[event]['pval_adj']]
 
-	'''
-	Output table with PSI adjusted for joins to exons outside the event
-	'''
-	#if fpkm > 0:
-	#	fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj','fpkm_proportion1','fpkm_proportion2']
-	#else:
-	#	fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc1_adj','exc1_adj','psi1_adj','inc2_adj','exc2_adj','psi2_adj','delta_psi_adj','pval_adj','qval_adj']
-	
-	#sortfield = 'pval_adj'
-	#print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'event_id')
 
 	'''
-	Output UNadjusted table
+	Output table
 	'''
 	if fpkm > 0:
-		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval','fpkm_proportion1','fpkm_proportion2']
+		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','totalcovpersite1','totalcovpersite2','avgcovpersite','pval','qval','fpkm_proportion1','fpkm_proportion2']
 	else:
-		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','pval','qval']
+		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','totalcovpersite1','totalcovpersite2','avgcovpersite','delta_psi','pval','qval']
 	
 	sortfield = 'pval'
 	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'event_id')
