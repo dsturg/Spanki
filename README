@@ -17,11 +17,43 @@ Getting started
 Please see the wiki pages for details about installing and usage:
  https://github.com/dsturg/Spanki/wiki
 
+Spanki has been tested on Mac OSX >= 10.6 and Ubuntu Linux 10.04
+
+Prerequisites
+---------------
+
+Python modules
+~~~~~~~~~~
+Spanki requires the following Python packages (Python will attempt to install them for you):
+
+pyfasta
+pysam
+numpy
+Biopython
+scikits.statsmodels
+fisher
+
+If you encounter problems getting numpy and scipy installed together, we recommend installing the ENTHOUGHT python distribution (http://enthought.com/products/epd.php). 
+
+Other required programs
+~~~~~~~~~~
+samtools http://samtools.sourceforge.net/
+Cufflinks (Spanky uses the gtf_to_sam utility to create a sam representation of a gtf reference) http://cufflinks.cbcb.umd.edu
+
+Required for splicing analysis:
+AStalavista (or a precomputed splicing event file) http://genome.crg.es/astalavista/
+
 Installation
 ---------------
-Either clone or download a tarball and decompress.
+Clone this repo:
+git clone git://github.com/dsturg/Spanki
+
 Then use the python install process:
 	sudo python setup.py install
+
+OR:
+Download the most stable release (See https://github.com/dsturg/Spanki/downloads)
+Decompress and install as described above
 
 
 Questions
