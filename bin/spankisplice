@@ -443,7 +443,7 @@ def get_coverage(eventdict,DATAB):
 			if join == 'irt':
 				'''
 				If a retained intron, get irt in other join(s)
-				Remember that there may bee more than one join in the otherpath!
+				Remember that there may be more than one join in the otherpath!
 				Make number of sites equal to number of joins in other path times 2 
 				'''
 				sites1 = sites2 * 2
@@ -1078,12 +1078,13 @@ def main():
 	sens mode
 	'''
 	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
 	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 
 	
 	for i in RESULTS:
+		RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_sens']
 		RESULTS[i]['incov'] = RESULTS[i]['inccov_sens']
 		RESULTS[i]['excov'] = RESULTS[i]['exccov_sens'] 
 		RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_sens']
@@ -1100,13 +1101,14 @@ def main():
 	prec mode
 	'''
 	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
 	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 
 	
 	RESULTS = eventdict
 	for i in RESULTS:
+		RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_prec']
 		RESULTS[i]['incov'] = RESULTS[i]['inccov_prec']
 		RESULTS[i]['excov'] = RESULTS[i]['exccov_prec'] 
 		RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_prec']

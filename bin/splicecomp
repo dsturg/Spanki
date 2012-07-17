@@ -43,7 +43,6 @@ def tab_to_dict(tabfile):
 			id = str(values[0])
 			mytab[id] = linedict 
 			#print "adding to ",linedict['juncid']
-			#print linedict
 		linecount += 1
 	return mytab
 
