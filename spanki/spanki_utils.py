@@ -52,9 +52,9 @@ def prep_ref(gtffile,fastafile,output_dir):
 	http://cufflinks.cbcb.umd.edu
 	'''
 	tmp_dir = output_dir + "/tmp/"
-	print "[**   Setup   **] Making transcript to attribute lookup"
+	print >> sys.stderr, "[**   Setup   **] Making transcript to attribute lookup"
 	txdict = gtf_to_attributes_dict(gtffile)
-	print "[**   Setup   **] Convert GTF reference to SAM"
+	print >> sys.stderr, "[**   Setup   **] Convert GTF reference to SAM"
 	try:
 		subprocess.call(["gtf_to_sam", gtffile, tmp_dir + "/ref.sam"])
 	except:
@@ -70,7 +70,7 @@ def prep_ref(gtffile,fastafile,output_dir):
 		quit()
 
 	fastidx = fastafile + ".fai"
-	print "[**   Setup   **] Convert SAM reference to BAM"
+	print >> sys.stderr, "[**   Setup   **] Convert SAM reference to BAM"
 	#subprocess.check_output(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"])
 	
 	p = subprocess.Popen(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"], stderr=subprocess.PIPE)

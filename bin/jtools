@@ -467,7 +467,7 @@ def gff_to_dict(infn):
 				attributes = [x.strip() for x in attributes]
 				for attribute in attributes:
 					attr = attribute.strip().split("=")
-					#print linedict
+					print linedict
 					linedict[attr[0]] = attr[1].strip("\"")
 					#print "Keying on", attr[0]
 				myfeatureid = linedict['ID']
@@ -564,6 +564,7 @@ def parse_options(desc):
 	parser.add_argument('-o', help='outfile', action="store", dest="o", default="curated_juncs")
 	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
 	parser.add_argument('-gff', help='GFF file', action="store", dest="gff")
+	parser.add_argument('-gtf', help='GTF file', action="store", dest="gtf")
 	parser.add_argument('-juncbed', help='BED file', action="store", dest="juncbed")
 	parser.add_argument('-intronbed', help='BED file', action="store", dest="intronbed")
 	
@@ -595,11 +596,13 @@ fastafile = args.f
 juncbedfile = args.juncbed
 intronbedfile = args.intronbed
 gfffile = args.gff
+gtffile = args.gtf
+
 #~~~~~~~~~~~~~~~~~~~
 # Prepare output directory
 #~~~~~~~~~~~~~~~~~~~
-#output_dir = outfile
-#spanki_utils.prepare_basic_output_dir(output_dir)
+output_dir = "."
+spanki_utils.prepare_basic_output_dir(output_dir)
 
 
 #~~~~~~~~~~~~~~~~~~~
@@ -732,6 +735,35 @@ def main():
 	
 		quit()
 
+	########################################################
+	### Converting from another format
+	########################################################
+
+	if gtffile:
+	
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Intializing the reference
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# You need the gtf file, and the fasta file
+		lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
+		## Note that you now have a reference called ref.bam, and a lookup dict
+		tmp_dir = output_dir + "/tmp/"
+		reffile = tmp_dir + "/ref.bam"
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Load an annotation, flattened as bam
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
+		reffh = pysam.Samfile( reffile, "rb" )
+		edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
+		reffh.close()
+		print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
+	
+		for junc in refjuncs:
+			print junc
+
+	
+		quit()
 	### Below are functions that operate on a junction list
 	########################################################
 
