@@ -21,6 +21,7 @@ import collections
 import math
 import os
 import csv
+import time
 
 import numpy as np
 from pyfasta import Fasta
@@ -34,6 +35,8 @@ import spanki.spanki_parse_utils as spanki_parse_utils
 import spanki.spanki_utils as spanki_utils
 import spanki.sim_models as models
 
+#from sys import stdout
+#from time import sleep
 
 # Biopython:
 from Bio.Seq import Seq
@@ -255,6 +258,9 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 	if (flip > 0): 
 		mystrand = strandidx[1]
 	
+	'''
+	jsr means 'Junction Spanning Read'
+	'''
 	jsr = 0
 	if len(mycigar) > mybp:
 		newcigar = implodeCigar(readcigar)
@@ -322,7 +328,6 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 		Uses the model to determine where to put mismatches
 		'''
 		mmpos = weighted_choice(mmposprob)
-		#print "Will put mismatch at position", mmpos, "read is length", len(read)
 		oldbase = read[mmpos]
 		newbase = oldbase
 		while oldbase == newbase:
@@ -572,8 +577,11 @@ def parse_options(desc):
 	parser.add_argument('-rpk', help='rpk to sim', action="store", dest="r", type=int)
 	parser.add_argument('-s', help='start selection mode', action="store", dest="s", default="random")
 	parser.add_argument('-m', help='model', action="store", dest="m", default="Default")
-	parser.add_argument('-bp', help='model', action="store", type=int, dest="bp", default=76)
+	parser.add_argument('-mdir', help='custom model directory', action="store", dest="mdir", default="none")
+	parser.add_argument('-bp', help='read length', action="store", type=int, dest="bp", default=75)
+	parser.add_argument('-ends', help='number of mates (1=single or 2=pairede nds)', action="store", type=int, dest="ends", default=1)
 	parser.add_argument('-ir', help='intron_retention', action="store", type=float, dest="ir", default=0.2)
+	args = parser.parse_args()
 	if len(sys.argv)==1:
 		parser.print_help()
 		sys.exit(1)
@@ -614,6 +622,8 @@ startmodel = args.s
 model = args.m
 mybp = args.bp
 myir = args.ir
+myends = args.ends
+customdir = args.mdir
 # Prepare output directory
 output_dir = outfile
 spanki_utils.prepare_output_dir(output_dir)
@@ -634,14 +644,15 @@ log_out_name = output_dir + "/logs/log.txt"
 log_out = open(log_out_name, "w")
 
 
+
+
+
 # Try making juncresults dict global
 JUNCRESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 def main():
 	global mycov
 	global myrpk
-
-
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Checking that required files are present
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -649,17 +660,19 @@ def main():
 		quit("Need to specify a fasta file")
 	if not gtffile:
 		quit("Need to specify a fasta file")
-
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Checking that model name is correct
+ 	# Checking that model name is valid
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	possible_models = ['Default','NIST','dm3']
+ 	possible_models = ['Default','NIST','dm3','custom']
  	
  	if model not in possible_models:
  		error_msg =  "Don't recognize model name " +  model
  		quit(error_msg)
 
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  	if model == "custom" and customdir =="none":
+ 		error_msg =  "If you wnt to use a custom model, you must specify a directory with -mdir "
+ 		quit(error_msg)
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Writing parameters to log file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -669,7 +682,6 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Confirming whether to use coverage or rpk
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	
  	if txinput:
  		if (mycov or myrpk):
  			print "Transcript file: ", txinput
@@ -691,27 +703,19 @@ def main():
  		abundance_value = 1
  		mycov = 1
  		print >> log_out, abundance_metric + ":", abundance_value
-
- 			
-
  	#~~~~~~~~~~~~~~~~~~~
 	# Load table of tx abundances
 	# to sim
 	#~~~~~~~~~~~~~~~~~~~
 	if txinput:
 		txtab = tab_to_dict(txinput)
-	
-	#if txinput:
-	#	for i in txtab.keys():
-	#		print i, txtab[i]
-
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load a fasta file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
-	print >> sys.stderr, "[%s] Trying to load fasta %s" % (spanki_utils.timestamp(), output_dir)
+	print >> sys.stderr, "[%s] Trying to load fasta %s" % (spanki_utils.timestamp(), fastafile)
 	f = Fasta(fastafile)
-	print >> sys.stderr, "[%s] Done loading fasta %s" % (spanki_utils.timestamp(), output_dir)
+	print >> sys.stderr, "[%s] Done loading fasta %s" % (spanki_utils.timestamp(), fastafile)
 	
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -737,7 +741,6 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	print >> sys.stderr, "[%s] Loading annotation as bam" % (spanki_utils.timestamp())
  	reffh = pysam.Samfile( reffile, "rb" )
-	#edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
 	
 	if txinput:
 		edgedict, refjuncs = spanki_parse_utils.parseRefSelectionAsBam(reffh,txtab.keys())
@@ -751,18 +754,10 @@ def main():
 	reffh.close()
 	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
 
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Load an annotation, flattened as bam
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	#print >> sys.stderr, "[%s] Trying to load annotation as bam %s" % (right_now(), output_dir)
-	#TX = parseRefAsBam3(reffile)
-	#print >> sys.stderr, "[%s] Done loading annotation as bam %s" % (right_now(), output_dir)
 	
 	reftx = TX.keys()
 
-
-
-	# Now limit to just those in the TX table
+	# Now limit to just those in the TX table (if applicable)
 	if txinput:
 		reftx = txtab.keys()
 	# (Need to do the same to the refjunctable!)
@@ -802,34 +797,30 @@ def main():
 	Total mismatches
 	MMNUM
 	"""
-	
-	mmprob = models.getMMNUMmodel(model,mybp)
-	
+	mmprob = models.getMMNUMmodel(model,mybp,customdir)
 	"""
 	Positions of mismatches
 	MMPOS
 	"""
-	mmposprob = models.getMMPOSmodel(model,mybp)
+	mmposprob = models.getMMPOSmodel(model,mybp,customdir)
+	if len(mmposprob) > mybp:
+		print "Warning: mmpos model is longer than the simulated read lenth"
+		mmposprob = mmposprob[0:mybp-1]
 	"""
 	Type of mismatches
 	MMTYPE
 	(Currently just doing random base sub.)
 	"""
-	mmtypeprob = models.getMMTYPEmodel(model)
-
-
+	mmtypeprob = models.getMMTYPEmodel(model,customdir)
 	"""
 	Quality scores
 	QUAL
 	"""
-
 	# consensus quality string
-	
-	qualstring = models.getQUALmodel(model,mybp)
+	qualstring = models.getQUALmodel(model,mybp,customdir)
 
 	# consensus quality score at mismatches
-	
-	mmqual= models.getMMQUALmodel(model)
+	mmqual= models.getMMQUALmodel(model,customdir)
 	
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# counters
@@ -845,18 +836,16 @@ def main():
 
 	print >> tx_out, "counter\ttxid\tcov\trpk\tnumreads\tlength\tstrand"
 
-
-	#for i in range(numtx):
 	counter = len(reftx)
+	print "Simulating", len(reftx), "transcripts"
+	print "Counting down:"
 	for i in reftx:
 	
-		#print "On tx number ", i + 1
 		txcount += 1
 		mytx = i
 
 		#print "simming", mytx
 
-		#mytx = "FBtr0078170"
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Get tx sequence
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -870,25 +859,33 @@ def main():
 
 		'''
 		getting starting position weights
-		
 		'''
+		#x = time.time()
 		startweights_spliced = getStartweights(str(myseq_spliced),mers,seqweights)
 		startweights_unspliced = getStartweights(str(myseq_unspliced),mers,seqweights)
-	
+		#print "1", time.time() - x
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Set up indexes to keep track of position, strand
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
 		'''
 		range:  start, end
 		using zero-based start
-		'''
-		pre2genome = range(TX[mytx]['start'],TX[mytx]['start'] + prelength)
-	
-		#print TX[mytx]['chain']
 		
-	
+		Note 'pre' is meant to be like the pre-mRNA, the unspliced transcript
+		'''
+		#x = time.time()
+		pre2genome = range(TX[mytx]['start'],TX[mytx]['start'] + prelength)
+		#print "2", time.time() - x
+		'''
+		precigar is a string that helps to construct the cigar string later 
+		based on where the read is exracted from
+		'''
+		#x = time.time()
 		precigar = explodingCigar(TX[mytx]['chain'])
+		#print "3", time.time() - x
+
+		#x = time.time()
+
 		# Getting an index of GENOMIC coordinates
 		#coordidx, splicedcoordidx, indexstring = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
 		#pre2genome, spl2pre = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
@@ -902,7 +899,7 @@ def main():
 			strandidx.append("+")
 			myseq_spliced = myseq_spliced.reverse_complement()
 			myseq_unspliced = myseq_unspliced.reverse_complement()
-
+		#print "4", time.time() - x
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Find number of reads required
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -936,7 +933,7 @@ def main():
 		#if isodd(numreads): numreads += 1 #(Rounds up to even number)
 		
 		# Always calculated RPK and Coverge, no matter how you decide how many reads to make
-		
+		#x = time.time()
 		if mycov:
 			covtimeslength = mycov * len(myseq_spliced)
 			numreads = int(covtimeslength / mybp)
@@ -979,14 +976,20 @@ def main():
 		RPK = numreads / len(myseq_spliced) * 1000;
 		COV = (numreads * mybp) / len(myseq_spliced)
 		
-		print counter, mytx, COV, RPK, numreads, len(myseq_spliced), strandidx[0]
+		#print counter, mytx, COV, RPK, numreads, len(myseq_spliced), strandidx[0]
+		#print counter,
+		#print "\r",counter,
+		
+		sys.stdout.write("\r%d" % counter)
+		sys.stdout.flush()
 		print >> tx_out, counter, mytx, COV, RPK, numreads, len(myseq_spliced), strandidx[0]
 		counter -= 1
-	
+		#print "5", time.time() - x
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Generate reads
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		#print startweights_spliced	
+		#x = time.time()
 		for x in range(0,numreads_spliced):
   			myseq = myseq_spliced
 
@@ -1026,8 +1029,9 @@ def main():
 				print >> sim_fastq_out,  read
 			
 			print >> sim_sam_out, '\t'.join(samline)
-	
-	
+		#print "6", time.time() - x
+
+	sys.stdout.write("\r  \r\n")
 	print >> sys.stderr, "[%s] Done with sim %s" % (spanki_utils.timestamp(), output_dir)
 	print txcount, "transcripts simmed"
 	print txskip, "transcripts skipped"

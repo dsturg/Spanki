@@ -602,7 +602,8 @@ gtffile = args.gtf
 # Prepare output directory
 #~~~~~~~~~~~~~~~~~~~
 output_dir = "."
-spanki_utils.prepare_basic_output_dir(output_dir)
+#spanki_utils.prepare_basic_output_dir(output_dir)
+spanki_utils.prepare_output_dir(output_dir)
 
 
 #~~~~~~~~~~~~~~~~~~~
@@ -747,9 +748,9 @@ def main():
 		# You need the gtf file, and the fasta file
 		lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
 		## Note that you now have a reference called ref.bam, and a lookup dict
-		tmp_dir = output_dir + "/tmp/"
-		reffile = tmp_dir + "/ref.bam"
-		
+		#tmp_dir = output_dir + "/tmp/"
+		#reffile = tmp_dir + "/ref.bam"
+		reffile = "tmp/ref.bam"
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Load an annotation, flattened as bam
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

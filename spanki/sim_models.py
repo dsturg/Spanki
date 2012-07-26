@@ -29,7 +29,7 @@ from collections import defaultdict
 
 from datetime import datetime, date
 
-def getMMNUMmodel(model,mybp):
+def getMMNUMmodel(model,mybp,customdir):
 
 	mmprob = []
 
@@ -71,9 +71,19 @@ def getMMNUMmodel(model,mybp):
 			except:
 				pass
 
+	elif (model == "custom"):
+		myresource = str(customdir + '/mmtotals.txt')
+		data = open(os.path.join('', myresource), 'rb').read()
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			try:
+				mmprob.append(int(values[1]))
+			except:
+				pass
 	return mmprob
 
-def getMMPOSmodel(model,mybp):
+def getMMPOSmodel(model,mybp,customdir):
 
 	mmposprob = []
 	
@@ -100,9 +110,19 @@ def getMMPOSmodel(model,mybp):
 				mmposprob.append(int(values[1]))
 			except:
 				pass
+	elif (model == "custom"):
+		myresource = str(customdir + '/mmcounts.txt')
+		data = open(os.path.join('', myresource), 'rb').read()
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			try:
+				mmposprob.append(int(values[1]))
+			except:
+				pass
 	return mmposprob
 
-def getMMTYPEmodel(model):
+def getMMTYPEmodel(model,customdir):
 
 	mmtypeprob = collections.defaultdict(lambda : collections.defaultdict(dict))
 
@@ -146,10 +166,21 @@ def getMMTYPEmodel(model):
 				mmtypeprob[bases[0]][str(bases[1])] = values[1]
 			except:
 				pass
+	elif (model == "custom"):
+		myresource = str(customdir + '/mmtypes.txt')
+		data = open(os.path.join('', myresource), 'rb').read()
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			bases = values[0].split(">")
+			try:
+				mmtypeprob[bases[0]][str(bases[1])] = values[1]
+			except:
+				pass
 
 	return mmtypeprob
 
-def getQUALmodel(model,mybp):
+def getQUALmodel(model,mybp,customdir):
 
 	quals = collections.defaultdict(lambda : collections.defaultdict(dict))
 	qualpos = collections.defaultdict(lambda : collections.defaultdict(dict))
@@ -198,10 +229,30 @@ def getQUALmodel(model,mybp):
 			#print mypos, qual 
 			mypos += 1
 			qualstring += str(qual)
+	elif (model == "custom"):
+		myresource = str(customdir + '/qualitiescounts.txt')
+		data = open(os.path.join('', myresource), 'rb').read()
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			if len(values) > 1:
+				quals[values[0]] = []
+				quals[values[0]].extend(values[1:len(values)])
+				totalquals = len(values) - 1
+		mypos = 0
+		while mypos < totalquals: # iterate over positions
+			temp = 0
+			for i in quals.keys(): # iterate over quality scores
+				if int(quals[i][mypos]) > temp:
+					qual = i
+					temp = int(quals[i][mypos])
+			#print mypos, qual 
+			mypos += 1
+			qualstring += str(qual)
 
 	return qualstring
 
-def getMMQUALmodel(model):
+def getMMQUALmodel(model,customdir):
 	'''
 	Return consensus quality score for mismatched bases
 	'''
@@ -225,6 +276,20 @@ def getMMQUALmodel(model):
 	elif (model == "dm3"):
 		myresource = str('data/' + model + '_qualitiescounts.txt')
 		data = pkgutil.get_data(__name__, myresource)
+		lines = data.split('\n')
+		temp = 0
+		for line in lines:
+			values = line.rstrip().split("\t")
+			bases = values[0].split(">")
+			try:
+				if int(values[1]) > temp:
+					qual = values[0]
+					temp = int(values[1])
+			except:
+				pass
+	elif (model == "custom"):
+		myresource = str(customdir + '/qualitiescounts.txt')
+		data = open(os.path.join('', myresource), 'rb').read()
 		lines = data.split('\n')
 		temp = 0
 		for line in lines:
