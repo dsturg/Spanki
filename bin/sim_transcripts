@@ -817,10 +817,12 @@ def main():
 	QUAL
 	"""
 	# consensus quality string
-	qualstring = models.getQUALmodel(model,mybp,customdir)
 
+	qualstring = models.getQUALmodel(model,mybp,customdir)
+	#print qualstring
 	# consensus quality score at mismatches
 	mmqual= models.getMMQUALmodel(model,customdir)
+	#print mmqual
 	
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# counters
