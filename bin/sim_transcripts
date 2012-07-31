@@ -238,11 +238,19 @@ def sam2junc(cigartuple,strand,chr,start):
 
 def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmposprob, TX, spl2pre, f, refjuncs, qualscore, mmqual):
 
+	'''
+	Choose random start
+	'''
 	randstart = random.randint(0, len(myseq) - mybp - 1)
 
+	'''
+	Get read sequence
+	'''
 	read = myseq[randstart:randstart + mybp]
 	
-	# Get position in parent transcript and in genome
+	'''
+	Get position in parent transcript and in genome
+	'''
 	prestart = spl2pre[randstart]
 	preend = spl2pre[randstart + mybp]
 
@@ -250,15 +258,21 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 	mystart = genomicstart
 	genomicend = pre2genome[preend]
 
+	'''
+	Make cigar string
+	'''
 	readcigar = mycigar[prestart:preend]
 	
-	# randomly flip strand, but remember original strand
+	'''
+	Randomly flip strand, but remember original strand
+	'''
 	mystrand = strandidx[0]
 	flip = random.randrange(2)
 	if (flip > 0): 
 		mystrand = strandidx[1]
 	
 	'''
+	Track reads than span splice junctions
 	jsr means 'Junction Spanning Read'
 	'''
 	jsr = 0
@@ -316,7 +330,9 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 		pretty_strand = "minus"
 		read = read.reverse_complement()
 
-	### Mismatches
+	'''
+	Induce Mismatches
+	'''
 	bases = ['A','G','C','T']
 	'''
 	Uses the model to determine how many total mismatches to induce
@@ -339,10 +355,18 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 	# Note that in SAM file, read is presented as strand it aligns to, not as the read 
 	# comes off the machine
 
+	'''
+	Make the read ID
+	'''
+
 	id = mytx + "_" + str(pretty_readnum) + "_" + TX[mytx]['chr'] + ":" + str(genomicstart + 1) + ":" + pretty_strand + "_NM" + str(mmnum) + "_" + newcigar + "#0/1"
 	readid = "@" + id
 
 	readtuple = [readid,read,"+",qualscore]
+
+	'''
+	Make a samfile line
+	'''
 
 	samline = []
 	samline.append(id)
@@ -363,6 +387,308 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 	samline.append("XS:A:" + strandidx[0])
 	samline.append("NH:i:1")
 	return readtuple, samline
+
+def track_jsr(mybp,mycigar,mystrand,mygenomicstart,TX,refjuncs,mytx):
+	jsr = 0
+	jsrstrand = ""
+	'''
+	Track reads than span splice junctions
+	jsr means 'Junction Spanning Read'
+	'''
+	jsr = 0
+	if len(mycigar) > mybp:
+		'''
+		'Newcigar' is the extracted form of where the read came from
+		If it is longer than read length, then it has gaps in it!
+		'''
+		newcigar = implodeCigar(mycigar)
+		jsr += 1
+	else:
+		newcigar = str(mybp) + "M"
+
+
+	'''
+	# Get counts of simmed reads for each junc
+	# Requires: 'newcigar', jsr(bool), genomicstart
+	'''
+
+	if bool(jsr): # If it is a junction spanning read
+		'''
+		Making it a tuple will find the gaps
+		'''
+		cigartuple = cigarToTuple(newcigar)
+		mystart = mygenomicstart
+		while len(cigartuple) > 1:
+			mytuple = cigartuple[0:3]
+			cigartuple = cigartuple[2:]
+			minoverhang = mybp
+			#print "Getting counts", newcigar, mytuple
+			#Zero anchor example:
+			#Getting counts 76M23846N [[0, 76], [3, 23846]]
+			for i in mytuple:
+				if i[0] == 0:
+					if i[1] == mybp: minoverhang = 0
+					if minoverhang > i[1]: minoverhang = i[1]
+			#juncid = sam2junc(mytuple,strandidx[0],TX[mytx]['chr'],mystart)
+			juncid = sam2junc(mytuple,mystrand,TX[mytx]['chr'],mystart)
+			jsrstrand = mystrand
+			if juncid in refjuncs:
+				if minoverhang > 0:
+					JUNCRESULTS[juncid]['totalcov'] += 1
+					if minoverhang >= 8:
+						JUNCRESULTS[juncid]['effectivecov'] += 1
+				else:
+					newcigar = str(mybp) + "M"
+			else:
+				print juncid, "simmed, NOT in annotation"
+				quit()
+			mystart = mystart + mytuple[0][1] + mytuple[1][1]
+	return newcigar,jsrstrand
+
+def mutate_read(mmprob,qualscore,mmqual,mmposprob,read):
+	bases = ['A','G','C','T']
+	mmnum = weighted_choice(mmprob)
+	mmnum1 = mmnum
+	#print "Will induce ", mmnum, "mismatches"
+	for mm in range(mmnum):
+		'''
+		Uses the model to determine where to put mismatches
+		'''
+		mmpos = weighted_choice(mmposprob)
+		oldbase = read[mmpos]
+		newbase = oldbase
+		while oldbase == newbase:
+			newbase = choice(bases)
+		read = read[0:mmpos] + newbase + read[mmpos+1:]
+		# substitute lower quality in position where mismatch is in
+		qualscore = qualscore[0:mmpos] + mmqual + qualscore[mmpos+1:]
+	return mmnum, qualscore, read
+
+
+def simReadPE(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmposprob, TX, spl2pre, f, refjuncs, qualscore, mmqual, myends, myfragsize):
+
+	'''
+	Choose fragment size
+	'''
+	#print "Avg frag size is ", myfragsize
+	fragsize = int(random.normalvariate(myfragsize, myfragsize/10))
+	#print "Random fragsize is ", fragsize
+		
+	'''
+	Choose random start (for fragment, in transcript sequence)
+	'''
+	randstart = random.randint(0, len(myseq) - fragsize - 1)
+	
+
+	'''
+	Get read sequence (for each end, sense strand in transcript sequence)
+	Mate 1 -->   Mate 2 -->
+	Mate1: starts at randstart
+	Mate2: starts at randstart + fragsize - read length
+	'''
+	# Mate 1
+	read1 = myseq[randstart:randstart + mybp]
+	# Mate 2
+	mate2start = randstart + fragsize - mybp
+	read2 = myseq[mate2start:mate2start + mybp]
+
+	'''
+	Get position in parent transcript and in genome
+	'''
+	# Mate 1
+	prestart1 = spl2pre[randstart]
+	preend1 = spl2pre[randstart + mybp]
+	genomicstart1 = pre2genome[prestart1]
+	mystart = genomicstart1
+	genomicend1 = pre2genome[preend1]
+
+	# Mate 2
+	prestart2 = spl2pre[mate2start]
+	preend2 = spl2pre[mate2start + mybp]
+	genomicstart2 = pre2genome[prestart2]
+	mystart = genomicstart2
+	genomicend2 = pre2genome[preend2]
+
+	'''
+	Make cigar string
+	(The long form, eg MMMMMMNNNNNNMMMMMMMM)
+	'''
+	# Mate 1
+	readcigar1 = mycigar[prestart1:preend1]
+	# Mate 2
+	readcigar2 = mycigar[prestart2:preend2]
+	
+	
+	'''
+	Make new cigar string
+	(The short form, eg   5M4N10M)
+	Strand of both reads is still sense strand of transcript
+	'''
+
+ 	#if len(mycigar) > mybp:
+	#	'''
+	#	'Newcigar' is the extracted form of where the read came from
+	#	'''
+	#	newcigar1 = implodeCigar(readcigar1)
+	#	newcigar2 = implodeCigar(readcigar2)
+	#else:
+	#	newcigar1 = str(mybp) + "M"
+	#	newcigar2 = str(mybp) + "M"
+
+	newcigar1,jsrstrand1 = track_jsr(mybp,readcigar1,strandidx[0],genomicstart1,TX,refjuncs,mytx)
+	newcigar2,jsrstrand2 = track_jsr(mybp,readcigar2,strandidx[0],genomicstart2,TX,refjuncs,mytx)
+
+	'''
+	Induce Mismatches,
+	adjust qualscore
+	
+	Uses the model to determine how many total mismatches to induce
+	'''
+
+	mmnum1, qualscore1, mutatedread1 = mutate_read(mmprob,qualscore,mmqual,mmposprob,read1)
+	read1 = mutatedread1
+	mmnum2, qualscore2, mutatedread2 = mutate_read(mmprob,qualscore,mmqual,mmposprob,read2)
+	read2 = mutatedread2
+
+	# Note that in SAM file, read is presented as strand it aligns to, not as the read 
+	# comes off the machine
+
+
+	'''
+	Now get strand for each read, and revcomp if necessary
+	
+	Randomly flip
+	'''
+	#mystrand1 = strandidx[0]
+	#mystrand2 = strandidx[1]
+	
+	if genomicstart1 < genomicstart2:
+		mystrand1 = "+"
+		mystrand2 = "-"
+	else:
+		mystrand1 = "-"
+		mystrand2 = "+"
+
+	#flip = random.randrange(2)
+	#if (flip > 0): 
+	#	mystrand1 = strandidx[0]
+	#	mystrand2 = strandidx[1]
+	#else:
+	#	mystrand1 = strandidx[1]
+	#	mystrand2 = strandidx[0]
+	
+
+	'''
+	Revcomps if necessary
+	'''
+	#if strandidx[0] == "+":
+	segment1 = read1
+	segment2 = read2
+	#else:
+		#segment1 = read1.reverse_complement()
+		#segment2 = read2.reverse_complement()
+	
+	
+	if mystrand1 == "+":
+		pretty_strand1 = "plus"
+	else:
+		pretty_strand1 = "minus"
+		read1 = read1.reverse_complement()
+	if mystrand2 == "+":
+		pretty_strand2 = "plus"
+	else:
+		pretty_strand2 = "minus"
+		read2 = read2.reverse_complement()
+
+	'''
+	Make the read IDs
+	'''
+	pretty_readnum = "%05d" % readnum
+	# Mate 1
+	idprefix = mytx + "_" + str(pretty_readnum) + "_" + TX[mytx]['chr'] + ":" + str(genomicstart1 + 1) + ":" + newcigar1 + "_" + str(fragsize) + "_" + newcigar2 + "#0"	
+	id1 = idprefix + "/1"
+	readid = "@" + id1
+	readtuple1 = [readid,str(read1),"+",qualscore1]
+	# Mate 2
+	id2 = idprefix + "/2"
+	readid = "@" + id2
+	readtuple2 = [readid,str(read2),"+",qualscore2]
+
+	readtuple = []
+	readtuple.append(readtuple1)
+	readtuple.append(readtuple2)
+	
+
+	'''
+	Make a samfile line
+	'''
+	# Example of samfile line for two PE
+	#HWI-EAS179_0053:1:36:17055:19411#0	99	ERCC-00002	661	255	76M	=	721	136	CTTCCGCAGTCAAAACCGCGCAATTATCCCCGTCCTGATTTACTGGACTCGCAACGTGGGTCCATCAGTTGTCCGT	GEFFGGGFGGGGGGEFGDGDGEEGGDGFFGFGGGGDGFGGGDGGFFGFFGEGBGGB?EDACEEEEEA?=DFDFEFG	NM:i:0	NH:i:1
+	#HWI-EAS179_0053:1:36:17055:19411#0	147	ERCC-00002	721	255	76M	=	661	-136	TCCATCAGTTGTCCGTATACCAAGACGTCTAAGGGCGGTGTACACCCTTTTGAGCAATGATTGCACAACCTGCGAT	A:=C?BDFDFGACEC?BFCBGGF?EGGFEGGFGFEGEE:EDDF@DFGGGGGGFGD?GGGADEEEEEECBEBFFFFF	NM:i:0	NH:i:1
+
+
+
+	samline = []
+	# For mate1
+	samline.append(idprefix)
+	if mystrand1 == "+":
+		samline.append("0")
+	else:
+		samline.append("16")
+	samline.append(TX[mytx]['chr'])
+	samline.append(str(genomicstart1 + 1))
+	samline.append("255")
+	samline.append(newcigar1)
+	samline.append("=")
+	samline.append(str(genomicstart2 + 1))
+	samline.append(str(genomicend2 - genomicstart1))
+	samline.append(str(segment1))
+	if (mystrand1 == "+"):
+		samline.append(qualscore1)
+	else:
+		samline.append(qualscore1[::-1])
+	samline.append("NM:i:" + str(mmnum1))
+	#samline.append("XS:A:" + strandidx[1])
+	if jsrstrand1 == "+":
+		samline.append("XS:A:+")
+	elif jsrstrand1 == "-":
+		samline.append("XS:A:-")
+	samline.append("NH:i:1")
+	
+	
+	samlinetuple = []
+	samlinetuple.append(samline)
+	
+	samline = []
+	# For mate2
+	samline.append(idprefix)
+	if mystrand2 == "+":
+		samline.append("0")
+	else:
+		samline.append("16")
+	samline.append(TX[mytx]['chr'])
+	samline.append(str(genomicstart2 + 1))
+	samline.append("255")
+	samline.append(newcigar2)
+	samline.append("=")
+	samline.append(str(genomicstart1 + 1))
+	samline.append(str(genomicstart1 - genomicend2))
+	samline.append(str(segment2))
+	if (mystrand2 == "+"):
+		samline.append(qualscore2)
+	else:
+		samline.append(qualscore2[::-1])
+	samline.append("NM:i:" + str(mmnum2))
+	#samline.append("XS:A:" + strandidx[0])
+	if jsrstrand2 == "+":
+		samline.append("XS:A:+")
+	elif jsrstrand2 == "-":
+		samline.append("XS:A:-")
+	samline.append("NH:i:1")
+
+	samlinetuple.append(samline)
+
+	return readtuple, samlinetuple
 
 def simRead_weightstart(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmposprob, TX, spl2pre, f, refjuncs, qualscore, mmqual,startweights):
 
@@ -579,8 +905,9 @@ def parse_options(desc):
 	parser.add_argument('-m', help='model', action="store", dest="m", default="Default")
 	parser.add_argument('-mdir', help='custom model directory', action="store", dest="mdir", default="none")
 	parser.add_argument('-bp', help='read length', action="store", type=int, dest="bp", default=75)
-	parser.add_argument('-ends', help='number of mates (1=single or 2=pairede nds)', action="store", type=int, dest="ends", default=1)
+	parser.add_argument('-ends', help='number of mates (1=single or 2=paired ends)', action="store", type=int, dest="ends", default=1)
 	parser.add_argument('-ir', help='intron_retention', action="store", type=float, dest="ir", default=0.2)
+	parser.add_argument('-frag', help='fragment_size', action="store", type=int, dest="fragsize", default=200)
 	args = parser.parse_args()
 	if len(sys.argv)==1:
 		parser.print_help()
@@ -623,6 +950,7 @@ model = args.m
 mybp = args.bp
 myir = args.ir
 myends = args.ends
+myfragsize = args.fragsize
 customdir = args.mdir
 # Prepare output directory
 output_dir = outfile
@@ -634,8 +962,14 @@ tx_out = open(tx_result_out_name, "w")
 sim_sam_out_name = output_dir + "/sim.sam"
 sim_sam_out = open(sim_sam_out_name, "w")
 
-sim_fastq_out_name = output_dir + "/sim.fastq"
-sim_fastq_out = open(sim_fastq_out_name, "w")
+if myends == 1:
+	sim_fastq_out_name = output_dir + "/sim.fastq"
+	sim_fastq_out = open(sim_fastq_out_name, "w")
+elif myends == 2:
+	sim_fastq_out_name1 = output_dir + "/sim_1.fastq"
+	sim_fastq_out1 = open(sim_fastq_out_name1, "w")
+	sim_fastq_out_name2 = output_dir + "/sim_2.fastq"
+	sim_fastq_out2 = open(sim_fastq_out_name2, "w")
 
 junc_cov_out_name = output_dir + "/junc_coverage.txt"
 junc_cov_out = open(junc_cov_out_name, "w")
@@ -862,10 +1196,8 @@ def main():
 		'''
 		getting starting position weights
 		'''
-		#x = time.time()
 		startweights_spliced = getStartweights(str(myseq_spliced),mers,seqweights)
 		startweights_unspliced = getStartweights(str(myseq_unspliced),mers,seqweights)
-		#print "1", time.time() - x
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Set up indexes to keep track of position, strand
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
@@ -875,18 +1207,12 @@ def main():
 		
 		Note 'pre' is meant to be like the pre-mRNA, the unspliced transcript
 		'''
-		#x = time.time()
 		pre2genome = range(TX[mytx]['start'],TX[mytx]['start'] + prelength)
-		#print "2", time.time() - x
 		'''
 		precigar is a string that helps to construct the cigar string later 
 		based on where the read is exracted from
 		'''
-		#x = time.time()
 		precigar = explodingCigar(TX[mytx]['chain'])
-		#print "3", time.time() - x
-
-		#x = time.time()
 
 		# Getting an index of GENOMIC coordinates
 		#coordidx, splicedcoordidx, indexstring = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
@@ -901,6 +1227,7 @@ def main():
 			strandidx.append("+")
 			myseq_spliced = myseq_spliced.reverse_complement()
 			myseq_unspliced = myseq_unspliced.reverse_complement()
+
 		#print "4", time.time() - x
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Find number of reads required
@@ -927,8 +1254,7 @@ def main():
 		# coverage * G = NL
 		# cov = NL/G
 	
-		###!!! NOTE 
-		### The way I do it now, you should not cut the number of reads in half for PE!.
+		### Cut the number of reads in half for PE.
 		
 		#covtimeslength = mycov * len(myseq_spliced);
 		#numreads = int(covtimeslength / 76);	
@@ -960,13 +1286,28 @@ def main():
 			quit("Can't figure out how many reads to generate")
 		
 
+		### Cut the number of reads in half for PE.
+		if myends == 2:
+			#print "Numreads", numreads
+			#print "Number of ends is two"
+			numreads = int(round(numreads / 2))
+			#print "Numreads", numreads
+		elif myends == 1:
+			pass
+		else:
+			print "Error: number of ends specified is ", myends
+			quit("Don't recognize number of ends!")
+		
 		if isodd(numreads): numreads += 1 #(Rounds up to even number)
 
 		# Get spliced/unspliced number of reads
 		numreads_unspliced = int(intron_retention * numreads)
 		numreads_spliced = numreads  - numreads_unspliced
 	
-		if spllength < 100: 
+		'''
+		Skip transcripts where length < 400bp
+		'''
+		if spllength < 400: 
 			numreads = 0
 			numreads_spliced = 0
 			numreads_unspliced = 0
@@ -982,14 +1323,21 @@ def main():
 		#print counter,
 		#print "\r",counter,
 		
-		sys.stdout.write("\r%d" % counter)
+		sys.stdout.write("\r%.8d" % counter)
 		sys.stdout.flush()
 		print >> tx_out, counter, mytx, COV, RPK, numreads, len(myseq_spliced), strandidx[0]
 		counter -= 1
-		#print "5", time.time() - x
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+		#*********************************
+		#*********************************
+		#*********************************
+		#
 		# Generate reads
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		#
+		#*********************************
+		#*********************************
+		#*********************************
+
 		#print startweights_spliced	
 		#x = time.time()
 		for x in range(0,numreads_spliced):
@@ -1001,17 +1349,33 @@ def main():
 			myspl2pre = spl2pre
 			
 			if (startmodel == "random"):
-				readtuple, samline = simRead(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual)
+				if myends == 1:
+					readtuple, samline = simRead(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual)
+				else:
+					readtuple, samline = simReadPE(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual, myends, myfragsize)
+				
 			elif (startmodel == "weighted"):
-				readtuple, samline = simRead_weightstart(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual,startweights_spliced)
+				readtuple, samline = simRead_weightstart(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual,startweights_spliced, myends)
 			else:
 				quit("Don't recognize start model")
 
-			for read in readtuple:
-				print >> sim_fastq_out,  read
 			
-			print >> sim_sam_out, '\t'.join(samline)
-
+			if myends == 1:
+				for read in readtuple:
+					print >> sim_fastq_out,  read
+				print >> sim_sam_out, '\t'.join(samline)
+			else:
+				counter = 0
+				for read in readtuple:
+					if counter < 1:
+						print >> sim_fastq_out1, '\n'.join(read)
+						counter += 1
+					else:
+						print >> sim_fastq_out2, '\n'.join(read)
+						counter = 0
+				for sam in samline:
+					print >> sim_sam_out, '\t'.join(sam)
+				
 	
 		for x in range(0,numreads_unspliced):
 			myseq = myseq_unspliced
@@ -1021,16 +1385,31 @@ def main():
 			mystrand = strandidx[0]
 			
 			if (startmodel == "random"):
-				readtuple, samline = simRead(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual)
+				if myends == 1:
+					readtuple, samline = simRead(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual)
+				else:
+					readtuple, samline = simReadPE(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual, myends, myfragsize)
+
 			elif (startmodel == "weighted"):
 				readtuple, samline = simRead_weightstart(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual,startweights_unspliced)
 			else:
 				quit("Don't recognize start model")			
 
-			for read in readtuple:
-				print >> sim_fastq_out,  read
-			
-			print >> sim_sam_out, '\t'.join(samline)
+			if myends == 1:
+				for read in readtuple:
+					print >> sim_fastq_out,  read
+				print >> sim_sam_out, '\t'.join(samline)
+			else:
+				counter = 0
+				for read in readtuple:
+					if counter < 1:
+						print >> sim_fastq_out1, '\n'.join(read)
+						counter += 1
+					else:
+						print >> sim_fastq_out2, '\n'.join(read)
+						counter = 0
+				for sam in samline:
+					print >> sim_sam_out, '\t'.join(sam)
 		#print "6", time.time() - x
 
 	sys.stdout.write("\r  \r\n")

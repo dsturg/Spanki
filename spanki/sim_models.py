@@ -250,7 +250,7 @@ def getQUALmodel(model,mybp,customdir):
 			mypos += 1
 			qualstring += str(qual)
 
-	return qualstring[0:mybp-1]
+	return qualstring[0:mybp]
 
 def getMMQUALmodel(model,customdir):
 	'''
