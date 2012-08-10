@@ -56,6 +56,19 @@ Download the most stable release (See https://github.com/dsturg/Spanki/downloads
 Decompress and install as described above
 
 
+Example data
+---------------
+A test data set is available to try out the basic Spanki commands.
+You can download it here (~250 MB download):
+http://www.cbcb.umd.edu/software/spanki/testdata.tar.gz
+
+See the file simulation_example.txt for commands to walk
+through the simulation steps, using the test data.
+
+See the file analysis_commands.sh for an example
+run-through for splicing analysis
+
+
 Questions
 ---------------
 Contact Dave Sturgill
