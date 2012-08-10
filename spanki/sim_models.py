@@ -33,7 +33,7 @@ def getMMNUMmodel(model,mybp,customdir):
 
 	mmprob = []
 
-	if (model == "Default"):
+	if (model == "random"):
 		mmprob = [30,20,15,10,5,5,5,5,2.5,2.5]
 		#mmprob.extend([.25] * (mybp - 10))
 	elif (model == "NIST"):
@@ -71,6 +71,17 @@ def getMMNUMmodel(model,mybp,customdir):
 			except:
 				pass
 
+	elif (model == "flyheads"):
+		myresource = str('data/' + model + '_mmtotals.txt')
+		data = pkgutil.get_data(__name__, myresource)
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			try:
+				mmprob.append(int(values[1]))
+			except:
+				pass
+
 	elif (model == "custom"):
 		myresource = str(customdir + '/mmtotals.txt')
 		data = open(os.path.join('', myresource), 'rb').read()
@@ -87,7 +98,7 @@ def getMMPOSmodel(model,mybp,customdir):
 
 	mmposprob = []
 	
-	if (model == "Default"):
+	if (model == "random"):
 		mmposprob = [25,20,15,10,10,5,5,5,2,2]
 		mmposprob.extend([.75] * (mybp - 10))
 	elif (model == "NIST"):
@@ -101,6 +112,16 @@ def getMMPOSmodel(model,mybp,customdir):
 			except:
 				pass
 	elif (model == "dm3"):
+		myresource = str('data/' + model + '_mmcounts.txt')
+		data = pkgutil.get_data(__name__, myresource)
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			try:
+				mmposprob.append(int(values[1]))
+			except:
+				pass
+	elif (model == "flyheads"):
 		myresource = str('data/' + model + '_mmcounts.txt')
 		data = pkgutil.get_data(__name__, myresource)
 		lines = data.split('\n')
@@ -126,7 +147,7 @@ def getMMTYPEmodel(model,customdir):
 
 	mmtypeprob = collections.defaultdict(lambda : collections.defaultdict(dict))
 
-	if (model == "Default"):
+	if (model == "random"):
 		# Equal probability of each
 		mmtypeprob['A']['C'] = 25
 		mmtypeprob['A']['G'] = 25
@@ -166,6 +187,17 @@ def getMMTYPEmodel(model,customdir):
 				mmtypeprob[bases[0]][str(bases[1])] = values[1]
 			except:
 				pass
+	elif (model == "flyheads"):
+		myresource = str('data/' + model + '_mmtypes.txt')
+		data = pkgutil.get_data(__name__, myresource)
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			bases = values[0].split(">")
+			try:
+				mmtypeprob[bases[0]][str(bases[1])] = values[1]
+			except:
+				pass
 	elif (model == "custom"):
 		myresource = str(customdir + '/mmtypes.txt')
 		data = open(os.path.join('', myresource), 'rb').read()
@@ -186,7 +218,7 @@ def getQUALmodel(model,mybp,customdir):
 	qualpos = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	qualstring = ""
-	if (model == "Default"):
+	if (model == "random"):
 		# Equal probability of each
 		qualstring = "G" * mybp
 	elif (model == "NIST"):
@@ -210,6 +242,26 @@ def getQUALmodel(model,mybp,customdir):
 			mypos += 1
 			qualstring += str(qual)
 	elif (model == "dm3"):
+		myresource = str('data/' + model + '_qualitiescounts.txt')
+		data = pkgutil.get_data(__name__, myresource)
+		lines = data.split('\n')
+		for line in lines:
+			values = line.rstrip().split("\t")
+			if len(values) > 1:
+				quals[values[0]] = []
+				quals[values[0]].extend(values[1:len(values)])
+				totalquals = len(values) - 1
+		mypos = 0
+		while mypos < totalquals: # iterate over positions
+			temp = 0
+			for i in quals.keys(): # iterate over quality scores
+				if int(quals[i][mypos]) > temp:
+					qual = i
+					temp = int(quals[i][mypos])
+			#print mypos, qual 
+			mypos += 1
+			qualstring += str(qual)
+	elif (model == "flyheads"):
 		myresource = str('data/' + model + '_qualitiescounts.txt')
 		data = pkgutil.get_data(__name__, myresource)
 		lines = data.split('\n')
@@ -256,7 +308,7 @@ def getMMQUALmodel(model,customdir):
 	'''
 	Return consensus quality score for mismatched bases
 	'''
-	if (model == "Default"):
+	if (model == "random"):
 		# Equal probability of each
 		qual = "#"
 	elif (model == "NIST"):
@@ -274,6 +326,20 @@ def getMMQUALmodel(model,customdir):
 			except:
 				pass
 	elif (model == "dm3"):
+		myresource = str('data/' + model + '_qualitiescounts.txt')
+		data = pkgutil.get_data(__name__, myresource)
+		lines = data.split('\n')
+		temp = 0
+		for line in lines:
+			values = line.rstrip().split("\t")
+			bases = values[0].split(">")
+			try:
+				if int(values[1]) > temp:
+					qual = values[0]
+					temp = int(values[1])
+			except:
+				pass
+	elif (model == "flyheads"):
 		myresource = str('data/' + model + '_qualitiescounts.txt')
 		data = pkgutil.get_data(__name__, myresource)
 		lines = data.split('\n')

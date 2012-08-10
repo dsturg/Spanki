@@ -1,3 +1,8 @@
+# Splicing Analysis Toolkit (Spanki)
+# Example code for an analysis of splicing
+# Uses testdata availble from:
+# http://www.cbcb.umd.edu/software/spanki/testdata.tar.gz
+
 ECHO "[***************] Starting female spankijunc runs"
 spankijunc -m all -o female_rep1 -i testdata/female_r1.bam -g testdata/annotation/genemodels.gtf -f testdata/fasta/myref.fa
 spankijunc -m all -o female_rep2 -i testdata/female_r2.bam -g testdata/annotation/genemodels.gtf -f testdata/fasta/myref.fa

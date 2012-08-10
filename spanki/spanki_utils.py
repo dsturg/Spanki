@@ -52,9 +52,9 @@ def prep_ref(gtffile,fastafile,output_dir):
 	http://cufflinks.cbcb.umd.edu
 	'''
 	tmp_dir = output_dir + "/tmp/"
-	print >> sys.stderr, "[**   Setup   **] Making transcript to attribute lookup"
+	print >> sys.stderr, "[%s] Making transcript to attribute lookup" % (timestamp())
 	txdict = gtf_to_attributes_dict(gtffile)
-	print >> sys.stderr, "[**   Setup   **] Convert GTF reference to SAM"
+	print >> sys.stderr, "[%s] Convert GTF reference to SAM" % (timestamp())
 	try:
 		subprocess.call(["gtf_to_sam", gtffile, tmp_dir + "/ref.sam"])
 	except:
@@ -70,7 +70,7 @@ def prep_ref(gtffile,fastafile,output_dir):
 		quit()
 
 	fastidx = fastafile + ".fai"
-	print >> sys.stderr, "[**   Setup   **] Convert SAM reference to BAM"
+	print >> sys.stderr, "[%s] Convert SAM reference to BAM", timestamp()
 	#subprocess.check_output(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"])
 	
 	p = subprocess.Popen(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"], stderr=subprocess.PIPE)
@@ -125,11 +125,7 @@ def sam_to_bam(samfile_prefix,fastafile,output_dir):
 def prepare_output_dir(output_dir):
     logging_dir = output_dir + "/logs/"
     tmp_dir = output_dir + "/tmp/"
-
-    #print >> sys.stderr, "[%s] Preparing output location %s" % (timestamp(), output_dir)
-    print >> sys.stderr, "[**   Setup   **] Preparing output location: ", output_dir
-
-
+    print >> sys.stderr, "[%s] Preparing output location %s" % (timestamp(), output_dir)
     if os.path.exists(output_dir):
         pass
     else:        
@@ -149,7 +145,7 @@ def prepare_basic_output_dir(output_dir):
 	'''
 	Doesn't make a tmp or log directory
 	'''
-	print >> sys.stderr, "[**   Setup   **] Preparing output location:", output_dir
+	print >> sys.stderr, "[%s] Preparing output location %s" % (timestamp(), output_dir)
 	if os.path.exists(output_dir):
 		pass
 	else:        
