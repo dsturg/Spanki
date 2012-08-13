@@ -25,6 +25,8 @@ my $start;
 my $end;
 my $strand;
 
+my $juncid;
+my $coverage;
 
 my $offset1;
 my $offset2;
@@ -65,6 +67,14 @@ while ($line = <SEQ>){
 		$intronend = $g[2];
 		$strand = $g[3];
 		
+		$juncid = $f[0];
+		
+		if ($f[1]) {
+			$coverage = $f[1];
+		} else {
+			$coverage = 1
+		}
+		
 		#print $line,"\n";
 		#print "$chromo\t$start\t$leftend\t$rightstart\t$end\n";
 		#sleep 2;
@@ -78,7 +88,7 @@ while ($line = <SEQ>){
 	
 		my $intronsize = $intronend - $intronstart;
 	
-		print "$chromo\t", $intronstart - $anchor, "\t", $intronend + $anchor, "\t", $f[0], "\t", $f[1], "\t";
+		print "$chromo\t", $intronstart - $anchor, "\t", $intronend + $anchor, "\t", $juncid, "\t", $coverage, "\t";
 		print "$strand\t", $intronstart - $anchor, "\t", $intronend + $anchor, "\t255,0,0\t2\t",$anchor,",",$anchor,"\t";
 		print "0,", $intronsize + $anchor, "\n";
 	

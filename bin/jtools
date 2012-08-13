@@ -641,17 +641,14 @@ def main():
 	########################################################
 	if (juncbedfile):
 
-		print "juncid\tid\tdastring"
-		print juncbedfile
+		print "juncid\toriginal_id\tdastring"
+		print >> sys.stderr, "Loading", juncbedfile
 		lines = csv.reader(open(juncbedfile, 'rb'), delimiter='\t')
-		gtagcount = 0
 		z = []
 		for line in lines:
 			pattern = re.compile('track')
 			track = pattern.search(line[0])
 			if not track:
-				#print line
-				#print line[0]
 				values = line
 				blocksizes = values[10].split(",")
 				blockstarts = values[11].split(",")
@@ -674,8 +671,7 @@ def main():
 				z.append(str(dastring))
 				print juncid, values[3], dastring
 		
-		print gtagcount
-		print Counter(z)
+		print >> sys.stderr, "Distribution of detected motifs:\n",Counter(z)
 		quit("Done")
 	########################################################
 	### Parsing a intronbed file
