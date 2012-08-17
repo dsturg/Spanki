@@ -14,10 +14,10 @@ ECHO "[***************] Merging the replicates together"
 merge_jtabs female_rep1/juncs.all,female_rep2/juncs.all > female_repsmerged.juncs
 merge_jtabs male_rep1/juncs.all,male_rep2/juncs.all > male_repsmerged.juncs
 
-ECHO "[***************] Parsing asta output"
-spankisplice -o female_repsmerged_asta -j female_repsmerged.juncs -c testdata/female_cuff/isoforms.fpkm_tracking -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf -a testdata/annotation/genemodels_splices.out 
-spankisplice -o male_repsmerged_asta -j male_repsmerged.juncs -c testdata/male_cuff/isoforms.fpkm_tracking -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf -a testdata/annotation/genemodels_splices.out 
+ECHO "[***************] Parsing events output"
+spankisplice -o female_repsmerged_events -j female_repsmerged.juncs -c testdata/female_cuff/isoforms.fpkm_tracking -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf -a testdata/annotation/genemodels_splices.out 
+spankisplice -o male_repsmerged_events -j male_repsmerged.juncs -c testdata/male_cuff/isoforms.fpkm_tracking -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf -a testdata/annotation/genemodels_splices.out 
 
 ECHO "[***************] Doing pairwise comparison"
-splicecomp -a female_repsmerged_asta/asta.out -b male_repsmerged_asta/asta.out -o F_vs_M_splicecomp
+splicecomp -a female_repsmerged_events/events.out -b male_repsmerged_events/events.out -o F_vs_M_splicecomp
 junccomp -a female_repsmerged.juncs -b male_repsmerged.juncs -o F_vs_M_junccomp

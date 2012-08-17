@@ -27,7 +27,7 @@ my $options_okay = GetOptions (
     'i=s'     => \$FILENAME,     # --in option expects a string
     'ends=i'    => \$ends,    # --ends option expects an integer
     'length=i' => \$bp,     # --length option expects an integer
-    'd=s'		=> \$modeldir # --models directory is a string
+    'o=s'		=> \$modeldir # --models directory is a string
 
 );
 
@@ -52,7 +52,7 @@ print "\tSee bowtie.cbcb.umd.edu for how to make one\n";
 print "\n";
 print "Unknown option: @_\n" if ( @_ );
 print "Usage:\n";
-print "\t spankisim_models [-i INPUT MAP FILE] [-e 1=single ends 2=paired ends] [-length read length] [-d model directory]\n\n";
+print "\t spankisim_models [-i INPUT MAP FILE] [-e 1=single ends 2=paired ends] [-length read length] [-o model directory]\n\n";
 exit;
 }
 

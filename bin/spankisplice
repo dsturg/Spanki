@@ -791,16 +791,16 @@ output_dir = outfile
 spanki_utils.prepare_output_dir(output_dir)
 # Prepare output file names
 
-asta_counts_out_opt_name = output_dir + "/asta_opt.out"
+asta_counts_out_opt_name = output_dir + "/events_opt.out"
 asta_counts_out_opt = open(asta_counts_out_opt_name, "w")
 
-asta_counts_out_all_name = output_dir + "/asta_all.out"
+asta_counts_out_all_name = output_dir + "/events_all.out"
 asta_counts_out_all = open(asta_counts_out_all_name, "w")
 
-asta_counts_out_prec_name = output_dir + "/asta_prec.out"
+asta_counts_out_prec_name = output_dir + "/events_prec.out"
 asta_counts_out_prec = open(asta_counts_out_prec_name, "w")
 
-asta_counts_out_sens_name = output_dir + "/asta_sens.out"
+asta_counts_out_sens_name = output_dir + "/events.out"
 asta_counts_out_sens = open(asta_counts_out_sens_name, "w")
 
 unassayable_events_counts_out_name = output_dir + "/unassayable_events.out"
