@@ -30,6 +30,7 @@ def gtf_to_attributes_dict(infn):
 				attributes = [x.strip() for x in attributes]
 				for attribute in attributes:
 					attr = attribute.strip().split(" ")
+					#print attr
 					linedict[attr[0]] = attr[1].strip("\"")
 				try:
 					attrdict[linedict['transcript_id']]['gene_id'] = linedict['gene_id']
