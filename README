@@ -14,8 +14,8 @@ confidence in junction alignments, and to quantify and compare splicing events.
 Getting started
 ===============
 
-Please see the wiki pages for details about installing and usage:
- https://github.com/dsturg/Spanki/wiki
+Please see the manual page for details about installing and usage:
+ http://www.cbcb.umd.edu/software/spanki/manual.html
 
 Spanki has been tested on Mac OSX >= 10.6 and Ubuntu Linux 10.04
 
