@@ -530,12 +530,20 @@ def print_dict_ordered(mydict,fout,fieldorder):
 	#mykeys = fieldorder
 	mykeys = mydict.keys()
 	mykeys.sort()
-	print >> fout, "juncid\t", '\t'.join(fieldorder)
+	headings = ['juncid']
+	headings.extend(fieldorder)
+	print >> fout, '\t'.join(headings)
+
+	#print >> fout, "juncid\t", '\t'.join(fieldorder)
 	for x in mykeys:
 		vals = []
 		for field in fieldorder:
 			vals.append(mydict[x][field])
-		print >> fout, x, '\t', '\t'.join(map(str,vals))
+		# Fixing it so it doesn't add a space to the junction id
+		results = [x]
+		results.extend(map(str,vals))
+		print >> fout, '\t'.join(results)
+		#print >> fout, x, '\t', '\t'.join(map(str,vals))
 
 def uniq(seq): 
 	# Not order preserving 

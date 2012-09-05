@@ -250,7 +250,9 @@ def tab_to_dict(tabfile):
 		else: 
 			values = line
 			linedict = dict(zip(keys, values))
-			id = str(values[0])
+			firstfield = str(values[0])
+			# Remove whitespace
+			id = firstfield.strip()
 			mytab[id] = linedict 
 			#print "adding to ",linedict['juncid']
 			#print linedict
@@ -532,11 +534,11 @@ def main():
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# First show how you can get in hte myjuncs list
 	print >> sys.stderr, "Printing results table"
-	print >> juncs_out, "juncid\tgeneassign\tannostatus\tintron_size\tgmcode\tregcode\tcov\tlirt\trirt\tirt\tdncov\tancov"
+	print >> juncs_out, "juncid\tdinucleotide\tgeneassign\tannostatus\tintron_size\tgmcode\tregcode\tcov\tlirt\trirt\tirt\tdncov\tancov"
 	
 	for juncid in sorted(keys2):
 		try:
-			results = [juncid, jdict[juncid]['geneassign'], jdict[juncid]['annostatus'], jdict[juncid]['intron_size'], jdict[juncid]['gmcode'], jdict[juncid]['regcode'], jdict[juncid]['cov'], jdict[juncid]['lirt'], jdict[juncid]['rirt'], jdict[juncid]['irt'], jdict[juncid]['dncov'], jdict[juncid]['ancov']]
+			results = [juncid, jdict[juncid]['dinucleotide'], jdict[juncid]['geneassign'], jdict[juncid]['annostatus'], jdict[juncid]['intron_size'], jdict[juncid]['gmcode'], jdict[juncid]['regcode'], jdict[juncid]['cov'], jdict[juncid]['lirt'], jdict[juncid]['rirt'], jdict[juncid]['irt'], jdict[juncid]['dncov'], jdict[juncid]['ancov']]
 			print >> juncs_out, ('\t'.join(map(str,results)))
 		except KeyError:
 			#myjuncs.append(juncid)	
@@ -547,7 +549,7 @@ def main():
 			else: dncov = 0
 			if covbyedge[accid]: ancov = covbyedge[accid]
 			else: ancov = 0
-			results = [juncid, reflist[juncid]['geneassign'],  reflist[juncid]['annostatus'],  reflist[juncid]['intron_size'],  reflist[juncid]['gmcode'],  reflist[juncid]['regcode'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['irt'], dncov, ancov]
+			results = [juncid, reflist[juncid]['dinucleotide'], reflist[juncid]['geneassign'],  reflist[juncid]['annostatus'],  reflist[juncid]['intron_size'],  reflist[juncid]['gmcode'],  reflist[juncid]['regcode'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['irt'], dncov, ancov]
 			#print(results, sep='\t')
 			print >> juncs_out, ('\t'.join(map(str,results)))
 
