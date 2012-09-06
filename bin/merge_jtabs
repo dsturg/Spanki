@@ -74,16 +74,25 @@ def main():
 					combined[juncid]['numsamps'] += 1
 					combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] )
 					try:
-						combined[juncid]['lirt'] = int(JTAB[juncid]['lirt']) + int(combined[juncid]['lirt'])							
-						combined[juncid]['rirt'] = int(JTAB[juncid]['rirt']) + int(combined[juncid]['rirt'])
-						combined[juncid]['irt'] = int(JTAB[juncid]['irt']) + int(combined[juncid]['irt'])
-						combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )
-						combined[juncid]['ancov'] = int(JTAB[juncid]['ancov']) + int(combined[juncid]['ancov'])
-					except KeyError:
+						int(combined[juncid]['dncov']) and int(JTAB[juncid]['dncov'])
 						'''
-						If the junction tables were run in 'eval' mode, irt will not be available
+						There is a bug with odd donors being called on both strands (found one example)
+						This if statement is a temporary fix
 						'''
-						irtinclude = "F"
+						try:
+							combined[juncid]['lirt'] = int(JTAB[juncid]['lirt']) + int(combined[juncid]['lirt'])							
+							combined[juncid]['rirt'] = int(JTAB[juncid]['rirt']) + int(combined[juncid]['rirt'])
+							combined[juncid]['irt'] = int(JTAB[juncid]['irt']) + int(combined[juncid]['irt'])
+							combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )
+							combined[juncid]['dncov'] = int(JTAB[juncid]['dncov']) + int(combined[juncid]['dncov'] )
+							combined[juncid]['ancov'] = int(JTAB[juncid]['ancov']) + int(combined[juncid]['ancov'])
+						except KeyError:
+							'''
+							If the junction tables were run in 'eval' mode, irt will not be available
+							'''
+							irtinclude = "F"
+							pass
+					except ValueError:
 						pass
 				else:
 					combined[juncid] = JTAB[juncid]
