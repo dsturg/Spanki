@@ -1085,18 +1085,14 @@ def parse_options(desc):
 	parser.add_argument('-jlist', help='junctionlist', action="store", dest="jlist")
 	parser.add_argument('-jtab', help='junctiontab', action="store", dest="jtab")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
-	parser.add_argument('-m', action="store", dest="m", default="all",
-		help="What method to run:\n"
-		"\t'eval'  - Evaluates alignments, does not calculate IRT\n"
-		"\t'quant' - Quantifies coverage and IRT, but not entropy and MMES\n"
-		"\t'all'   - Performs all analyses (default)")
+	#parser.add_argument('-m', action="store", dest="m", default="all",
+	#	help="What method to run:\n"
+	#	"\t'eval'  - Evaluates alignments, does not calculate IRT\n"
+	#	"\t'quant' - Quantifies coverage and IRT, but not entropy and MMES\n"
+	#	"\t'all'   - Performs all analyses (default)")
 	parser.add_argument('-f', action="store", dest="f",
 		help="Fasta file\n"
 		"Must have same chromosomes as BAM and GTF")
-	parser.add_argument('-filter', action="store", dest="filter", default="F", 
-		help="Filter junctions (T/F)\n"
-		"T - Do not report unannotated junctions with ambiguous gene assignment or high exon-intron similarity\n"
-		"F - Report all junctions (default)")
 	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
 	args = parser.parse_args()
 	# See here for argparse instructions:
@@ -1131,9 +1127,9 @@ jlist = args.jlist
 jtab = args.jtab
 outfile = args.o
 gtffile = args.g
-method = args.m
+#method = args.m
 fastafile = args.f
-filter = args.filter
+#filter = args.filter
 
 # Checking that input files exist
 '''
@@ -1147,13 +1143,17 @@ if not os.path.exists(bamfile):
 	parser.print_help()
 	exit(1)
 '''
-if not os.path.exists(gtffile):
-	print >> sys.stderr, "\n******************************************"
-	print >> sys.stderr, "** Error: Could not find input gtf file **"
-	print >> sys.stderr, "******************************************\n\n"	
-	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
-	parser.print_help()
-	exit(1)
+
+
+## If a gtf annotation was provided, check that it is readable
+if gtffile:
+	if not os.path.exists(gtffile):
+		print >> sys.stderr, "\n******************************************"
+		print >> sys.stderr, "** Error: Could not find input gtf file **"
+		print >> sys.stderr, "******************************************\n\n"	
+		parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+		parser.print_help()
+		exit(1)
 if not os.path.exists(fastafile):
 	print >> sys.stderr, "\n******************************************"
 	print >> sys.stderr, "** Error: Could not find input fasta file **"
@@ -1165,6 +1165,7 @@ if not os.path.exists(fastafile):
 
 # Prepare output directory
 output_dir = outfile
+
 spanki_utils.prepare_output_dir(output_dir)
 
 # Prepare output file names
@@ -1174,10 +1175,12 @@ juncs_out_name = output_dir + "/juncs.list"
 juncs_out = open(juncs_out_name, "w")
 juncs_all_out_name = output_dir + "/juncs.all"
 juncs_all_out = open(juncs_all_out_name, "w")
-ann_summary_out_name = output_dir + "/annotation_summary.txt"
-ann_summary = open(ann_summary_out_name, "w")
-donor_out_name = output_dir + "/donors.txt"
-donor_out = open(donor_out_name, "w")
+
+if gtffile:
+	ann_summary_out_name = output_dir + "/annotation_summary.txt"
+	ann_summary = open(ann_summary_out_name, "w")
+#donor_out_name = output_dir + "/donors.txt"
+#donor_out = open(donor_out_name, "w")
 log_out_name = output_dir + "/logs/log.txt"
 log_out = open(log_out_name, "w")
 	
@@ -1188,27 +1191,28 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	if not fastafile:
 		quit("Need to specify a fasta file")
-	if not gtffile:
-		quit("Need to specify a gtf file")
+	#if not gtffile:
+	#	quit("Need to specify a gtf file")
 		
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Checking what type of run to do
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	validmethods = ["quant","eval","test","all"]
-	if method in validmethods:
-		print >> sys.stderr, "[**   Setup   **] Running in '", method, "' mode"
-	else:
-		quit("[!!] Invalid method, choose 'eval' or 'quant'")
+	#validmethods = ["quant","eval","test","all"]
+	#if method in validmethods:
+	#	print >> sys.stderr, "[**   Setup   **] Running in '", method, "' mode"
+	#else:
+	#	quit("[!!] Invalid method, choose 'eval' or 'quant'")
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Writing parameters to log file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	print >> log_out, "[%s] Run started" % (spanki_utils.timestamp())
-	print >> log_out, "Method option:", method
+	#print >> log_out, "Method option:", method
 	print >> log_out, "Fastafile:", fastafile
-	print >> log_out, "Reference GTF file:", gtffile
+	if gtffile:
+		print >> log_out, "Reference GTF file:", gtffile
 	#print >> log_out, "Alignments:", bamfile
 
 
@@ -1217,7 +1221,9 @@ def main():
  	# Intializing the reference
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# You need the gtf file, and the fasta file
- 	lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
+ 	
+ 	if gtffile:
+ 		lookup = spanki_utils.prep_ref(gtffile,fastafile,output_dir)
   	## Note that you now have a reference called ref.bam, and a lookup dict
 	tmp_dir = output_dir + "/tmp/"
  	reffile = tmp_dir + "/ref.bam"
@@ -1272,11 +1278,13 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load an annotation, flattened as bam
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
- 	reffh = pysam.Samfile( reffile, "rb" )
-	edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
-	reffh.close()
-	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
+
+	if gtffile:
+		print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
+		reffh = pysam.Samfile( reffile, "rb" )
+		edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
+		reffh.close()
+		print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
 
 	
 	#~~~~~~~~~~~~~~~~~~~
@@ -1286,12 +1294,26 @@ def main():
 	if jtab:
 		reflist = tab_to_dict(jtab)
 		myjuncs = reflist.keys()
+	elif jlist:
+		lines = csv.reader(open(jlist, 'rb'), delimiter='\t')
+		myjuncs = []
+		for line in lines:
+			myjuncs.extend(line)
 	else:
 		myjuncs = refjuncs
-
-
-	
+		print >> sys.stderr, "No input junctions, analyzing annotation file"
 	print >> sys.stderr, len(myjuncs), "in junction list"
+
+
+
+	################################
+	################################
+	#  Analysis 1:  NAG/NAG
+	#  Does not require gene models 
+	################################
+	################################
+
+	print >> sys.stderr, "[%s] Analyzing NAGNAG motifs" % (spanki_utils.timestamp())
 
 	offset = 9
 	
@@ -1319,7 +1341,7 @@ def main():
 			nagstarts.extend(nagstartsdown)
 			
 			'''
-			Make a frame of all nag starts
+			Make a string of all nag starts
 			'''
 			if len(nagstarts) < 1:
 				nagstring = "-"
@@ -1446,17 +1468,49 @@ def main():
 		print >> juncs_out, junc
 
 
+	################################
+	################################
+	#  Analysis 2:  Annotation assessment
+	#  Requires gene models 
+	################################
+	################################
 
-	
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Make gene model type definitions 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- 	print >> sys.stderr, "[%s] Getting gene model annotation codes" % (spanki_utils.timestamp())
- 	reffh = pysam.Samfile( reffile, "rb" )
-	GENES = getGeneAnnotationCodes(reffh,lookup)
-	reffh.close()
- 	print >> sys.stderr, "[%s] Done getting gene model annotation codes" % (spanki_utils.timestamp())
+	if gtffile:
+		print >> sys.stderr, "[%s] Getting gene model annotation codes" % (spanki_utils.timestamp())
+		reffh = pysam.Samfile( reffile, "rb" )
+		GENES = getGeneAnnotationCodes(reffh,lookup)
+		reffh.close()
+		print >> sys.stderr, "[%s] Done getting gene model annotation codes" % (spanki_utils.timestamp())
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Try gene assignment of unannotated joins
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		print >> sys.stderr, "[%s] Getting gene assignments for unannotated joins" % (spanki_utils.timestamp())
+		reffh = pysam.Samfile( reffile, "rb" )
+		GENEASSIGN, ANNOSTATUS = getJoinGeneAssign(myjuncs,refjuncs,edgedict,reffh,lookup)
+		reffh.close()
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# Add gene-level gene-model annotation codes 
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		GENEINFO = collections.defaultdict(lambda : collections.defaultdict(dict))
+		for juncid in myjuncs:
+			geneid = GENEASSIGN[juncid]['geneassign']
+			if geneid in ["ambiguous","none"]:
+				GENEINFO[juncid]['gmcode'] = "-"
+				GENEINFO[juncid]['regcode'] = "-"
+			else:
+				#print GENES[geneid]['gmcode']
+				'''
+				If more than one gene, take the first
+				'''
+				mygene = str.split(geneid,",")[0]
+				geneid = mygene
+				GENEINFO[juncid]['gmcode'] = GENES[geneid]['gmcode']
+				GENEINFO[juncid]['regcode'] = GENES[geneid]['regcode']
+		print >> sys.stderr, "[%s] Done adding gene-model codes to results hash" % (spanki_utils.timestamp())
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1465,7 +1519,7 @@ def main():
  	# (Not implemented yet)
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	
+	'''
 	if (method == "test"):
 		refseqs = makeRefList(refjuncs,f)
 		# Testing iterative search
@@ -1506,13 +1560,13 @@ def main():
 
 		print >> sys.stderr, "[%s] Done seq comp of novel juncs %s" % (spanki_utils.timestamp(), output_dir)
 		quit()
-
-	#############################################
-	#############################################
-	#  Analyses
-	#
-	##############################################
-	##############################################
+	'''
+	################################
+	################################
+	#  Analysis 3:  Sequence analysis
+	#  Does not require gene models
+	################################
+	################################
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Extract sequence info for each join
@@ -1522,112 +1576,12 @@ def main():
  	INTSEQ = intron_sequence(myjuncs,f,offset)
 	print >> sys.stderr, "[%s] Extracted intron sequence" % (spanki_utils.timestamp())
 
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Try gene assignment of unannotated joins
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	print >> sys.stderr, "[%s] Getting gene assignments for unannotated joins" % (spanki_utils.timestamp())
-	reffh = pysam.Samfile( reffile, "rb" )
-	GENEASSIGN, ANNOSTATUS = getJoinGeneAssign(myjuncs,refjuncs,edgedict,reffh,lookup)
- 	reffh.close()
-
-
-	'''
-	#######################################
-	# Alignment based methods that are not used here
-	#######################################
-
- 	if (method in ["eval","all"]):
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		# Entropy
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		# Now calculate entropy, print vals table
-		print >> sys.stderr, "[%s] Calculating alignment entropy" % (spanki_utils.timestamp())
-		ENTROPIES = alignment_entropies(STAB,JTAB)
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		# Get Hamming distances for each join
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~		
-		print >> sys.stderr, "[%s] Getting intron / anchor similarity" % (spanki_utils.timestamp())
-		ANCHAM = anchor_hamming(myjuncs,f)
-
-
-	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Filtering out some junctions
- 	# If you filter any junctions out,
- 	# then they can't be included in neighbor coverages
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-	if (filter == "T"):
-		filtered_count = 0
-		rej_juncs_out_name = output_dir + "/rejected_juncs.txt"
-		rej_juncs_out = open(rej_juncs_out_name, "w")
-		print >> rej_juncs_out, "juncid\tintron_size\tdinucleotide\tannostatus\tgeneassign"
-		valid_motifs = ["GT..AG","GC..AG","AT..AC"]
-		juncs_to_evaluate = list(myjuncs)
-		for juncid in juncs_to_evaluate:
-			j1 = Junctionid(juncid)
-			#coords = juncid.split(':')[1]		
-			#start = int(coords.split('_')[0]) - 1
-			#end = int(coords.split('_')[1])
-			#intronsize = abs(start - end)
-			if ANNOSTATUS[juncid] != "an":
-				if (j1.intronsize < 50000) and (str(INTSEQ[juncid]['dinucleotide']) in valid_motifs) and (j1.intronsize > 42) and (GENEASSIGN[juncid]['geneassign'] != "ambiguous"):
-					pass
-				else:
-					filtered_count += 1
-					myjuncs.remove(juncid)
-					NEWDTAB[j1.donid][j1.accid] = 0
-					print >> rej_juncs_out, juncid, j1.intronsize, INTSEQ[juncid]['dinucleotide'], ANNOSTATUS[juncid], GENEASSIGN[juncid]['geneassign']
-		print >> sys.stderr, "[%s] Filtered" % (spanki_utils.timestamp()), filtered_count, "junctions" 
-	else:
-		print >> sys.stderr, "[%s] Stringent junction filter not applied" % (spanki_utils.timestamp())
-
-	if (method in ["quant","all"]):
-
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		# Getting donor-acceptor transition probs
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		# The below works, but I should simplify
-		print >> sys.stderr, "[%s] Getting D-A transition probs and neighbor coverage" % (spanki_utils.timestamp())
-		DATRANS,NEIGHBORCOV,joinsbyedge = donor_acceptor_transition(NEWDTAB,myjuncs)
-		
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		# IRT
-		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		bamfh = pysam.Samfile( bamfile, "rb" )
-		#for alignedread in samfile:
-		# Need some kind of iterator to getread length from first alignment in sam
-		print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanki_utils.timestamp())
-		IRT = intron_readthrough(myjuncs,bamfh)
-		bamfh.close()
-		print >> sys.stderr, "[%s] Done getting IRT" % (spanki_utils.timestamp())
-
-	#for gene in GENES.keys():
-	#	print gene, GENES[gene]
-
-	'''
-
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Add gene-level gene-model annotation codes 
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	#print >> sys.stderr, "[%s] Adding gene-model codes to results hash %s" % (spanki_utils.timestamp(), output_dir)
-	
-	GENEINFO = collections.defaultdict(lambda : collections.defaultdict(dict))
-	for juncid in myjuncs:
-		geneid = GENEASSIGN[juncid]['geneassign']
-		if geneid in ["ambiguous","none"]:
-			GENEINFO[juncid]['gmcode'] = "-"
-			GENEINFO[juncid]['regcode'] = "-"
-		else:
-			#print GENES[geneid]['gmcode']
-			'''
-			If more than one gene, take the first
-			'''
-			mygene = str.split(geneid,",")[0]
-			geneid = mygene
-			GENEINFO[juncid]['gmcode'] = GENES[geneid]['gmcode']
-			GENEINFO[juncid]['regcode'] = GENES[geneid]['regcode']
-	print >> sys.stderr, "[%s] Done adding gene-model codes to results hash" % (spanki_utils.timestamp())
+	################################
+	################################
+	# Preparing output tables
+	################################
+	################################
 	
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1641,38 +1595,63 @@ def main():
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Summarizing annotation statuses
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	stati = []
-	for juncid in ANNOSTATUS.keys():
-		stati.append(ANNOSTATUS[juncid])
-	print >> ann_summary, "Annotation status breakdown of the detected junctions:"
-	crossTabulate(stati,ann_summary)
 
-
+	if gtffile:
+		stati = []
+		for juncid in ANNOSTATUS.keys():
+			stati.append(ANNOSTATUS[juncid])
+		print >> ann_summary, "Annotation status breakdown of the detected junctions:"
+		crossTabulate(stati,ann_summary)
+	
 	myjuncs.sort()
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Make junction results table
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
-	fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag']
-	for juncid in myjuncs:
-		j1 = Junctionid(juncid)
-		RESULTS[juncid]['intron_size'] = j1.intronsize
-		RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
-		RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
-		RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
-		RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
-		RESULTS[juncid]['geneassignAn'] = GENEASSIGN[juncid]['geneassignAn']
-		RESULTS[juncid]['geneassignOv'] = GENEASSIGN[juncid]['geneassignOv']
-		RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
-		RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
-		RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
-		RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
-		RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
-		RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
-		RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
-		RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
-		RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+	if gtffile:
+		fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
+			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
+			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
+			RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
+			RESULTS[juncid]['geneassignAn'] = GENEASSIGN[juncid]['geneassignAn']
+			RESULTS[juncid]['geneassignOv'] = GENEASSIGN[juncid]['geneassignOv']
+			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
+			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+			RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
+			RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
+			RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
+			RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
+			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+	else:
+		fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+			RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
+			RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
+			RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
+			RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
+			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+	
+	
 
 	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
+
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Printing adjoining sequence
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	fieldorder = ['flank5','intron5','intron3','flank3']
 	#for juncid in myjuncs:
