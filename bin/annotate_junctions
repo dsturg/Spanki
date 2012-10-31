@@ -213,7 +213,7 @@ class Junctionid:
 
 
 
-def find_nag(myseq):
+def find_nagstring(myseq):
 	#IRT = collections.defaultdict(lambda : collections.defaultdict(dict))
 	'''
 	Find nag acceptors
@@ -240,6 +240,32 @@ def find_nag(myseq):
 		nagstring = "-"
 	return nagstring
 
+def find_nagstarts(myseq):
+	#IRT = collections.defaultdict(lambda : collections.defaultdict(dict))
+	'''
+	Find nag acceptors
+	'''
+	nagstring = ""
+	#print myseq
+	nagstarts = []
+	nagseqs = []
+
+	p = re.compile('[ACGT]AG')
+	#nags = p.findall(str(myseq))
+	for nag in p.finditer(str(myseq)):
+		#print nag.start(), nag.group()
+		nagstarts.append(nag.start())
+		nagseqs.append(nag.group())
+		#nagstring = nagstring + "," + nag
+
+	#p = re.compile("[a-z]")
+	#for m in p.finditer('a1b2c3d4'):
+    #print m.start(), m.group()
+	#if (nagseqs):
+	#	nagstring = ','.join(nagseqs) + ";" + ','.join(nagstarts)
+	#else:
+	#	nagstring = "-"
+	return nagstarts
 
 def tab_to_dict(tabfile):
 	"""
@@ -1243,56 +1269,164 @@ def main():
 	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
 	'''	
 
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Load an annotation, flattened as bam
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
+ 	reffh = pysam.Samfile( reffile, "rb" )
+	edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
+	reffh.close()
+	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
 
+	
 	#~~~~~~~~~~~~~~~~~~~
-	# Load reference junction list
+	# Load reference (input jtab) junction list
+	# If no jtab specified, use the GTF list
 	#~~~~~~~~~~~~~~~~~~~
-	reflist = tab_to_dict(jtab)
-
-	# Find the junctions in jlist that are not in jtab
-
-	myjuncs = reflist.keys()
-
+	if jtab:
+		reflist = tab_to_dict(jtab)
+		myjuncs = reflist.keys()
+	else:
+		myjuncs = refjuncs
 
 
 	
 	print >> sys.stderr, len(myjuncs), "in junction list"
 
-	updonor = 20
-	downdonor = 2
-	upacceptor = 2
-	downacceptor = 9
+	offset = 9
 	
 	NAG = collections.defaultdict(lambda : collections.defaultdict(dict))
 
-
+	
 	for x in myjuncs:
 		#print x
 		j1 = Junctionid(x)
 		#j1.display()
+		nag0junc = "-"
+		nag3junc = "-"
+		nag6junc = "-"
 		if j1.strand == "+":
-			#print Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
-			tempseq = Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
-			#print "***", tempseq.translate()
+			tempseq = Seq(f[j1.chr][j1.acceptor:j1.acceptor + offset], IUPAC.unambiguous_dna)
+			nagstartsup = find_nagstarts(tempseq)
+			tempseq = Seq(f[j1.chr][j1.acceptor - offset - 3:j1.acceptor - 3], IUPAC.unambiguous_dna)
+			nagstartsdowntemp = find_nagstarts(tempseq)
+			nagstartsdown = []
+			for start in nagstartsdowntemp:
+				start = start - offset - 3
+				nagstartsdown.append(start)
+			nagstarts = []
+			nagstarts.extend(nagstartsup)
+			nagstarts.extend(nagstartsdown)
 			
-			#print Seq(f[j1.chr][j1.donor:j1.donor + downdonor], IUPAC.unambiguous_dna)
-			#print Seq(f[j1.chr][j1.acceptor-upacceptor:j1.acceptor], IUPAC.unambiguous_dna)
-			#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna)
-			nagstring = find_nag(Seq(f[j1.chr][j1.acceptor:j1.acceptor + downacceptor], IUPAC.unambiguous_dna))
-			#print x, "*", nagstring
+			'''
+			Make a frame of all nag starts
+			'''
+			if len(nagstarts) < 1:
+				nagstring = "-"
+			else:
+				s = map(str, nagstarts) 
+				nagstring = ",".join(s)
+		
+			'''
+			Make a string of all nags in frame
+			'''
+			nagframestarts = []
+			for start in nagstarts:
+				if start % 3 == 0: nagframestarts.append(start)
+			if len(nagframestarts) < 1:
+				nagframestring = "-"
+			else:
+				s = map(str, nagframestarts) 
+				nagframestring = ",".join(s)
+				
+			if 6 in nagstarts:
+				nag6junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 9) + ":" + j1.strand
+			if 3 in nagstarts:
+				nag3junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 6) + ":" + j1.strand
+			if 0 in nagstarts:
+				nag0junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 3) + ":" + j1.strand
+
 		elif j1.strand == "-":
-			tempseq = Seq(f[j1.chr][j1.donor-updonor:j1.donor], IUPAC.unambiguous_dna)
+
+			tempseq = Seq(f[j1.chr][j1.acceptor:j1.acceptor - offset], IUPAC.unambiguous_dna)
 			tempseq = tempseq.reverse_complement()
+			nagstartsup = find_nagstarts(tempseq)
+			tempseq = Seq(f[j1.chr][j1.acceptor + 3:j1.acceptor + offset + 3], IUPAC.unambiguous_dna)
+			tempseq = tempseq.reverse_complement()
+			nagstartsdowntemp = find_nagstarts(tempseq)
+			nagstartsdown = []
+			for start in nagstartsdowntemp:
+				start = start - offset - 3
+				nagstartsdown.append(start)
+			nagstarts = []
+			nagstarts.extend(nagstartsup)
+			nagstarts.extend(nagstartsdown)
 			
-			nagstring = find_nag(tempseq)
-			#print Seq(f[j1.chr][j1.donor:j1.donor + updonor], IUPAC.unambiguous_dna).reverse_complement()
-			#print Seq(f[j1.chr][j1.donor - downdonor:j1.donor], IUPAC.unambiguous_dna).reverse_complement()
-			#print Seq(f[j1.chr][j1.acceptor:j1.acceptor + upacceptor], IUPAC.unambiguous_dna).reverse_complement()
-			#print Seq(f[j1.chr][j1.acceptor-downacceptor:j1.acceptor], IUPAC.unambiguous_dna).reverse_complement()
+			'''
+			Make a frame of all nag starts
+			'''
+			if len(nagstarts) < 1:
+				nagstring = "-"
+			else:
+				s = map(str, nagstarts) 
+				nagstring = ",".join(s)
+		
+			'''
+			Make a string of all nags in frame
+			'''
+			nagframestarts = []
+			for start in nagstarts:
+				if start % 3 == 0: nagframestarts.append(start)
+			if len(nagframestarts) < 1:
+				nagframestring = "-"
+			else:
+				s = map(str, nagframestarts) 
+				nagframestring = ",".join(s)
+
+			'''
+			tempseq = Seq(f[j1.chr][j1.donor-offset:j1.donor], IUPAC.unambiguous_dna)
+			tempseq = tempseq.reverse_complement()
+			nagstring = find_nagstring(tempseq)
+			nagframestring = "foo"
+			'''
 		else:
 			quit("Don't recognize strand")
-		NAG[x] = nagstring
+		NAG[x]['nagstring'] = nagstring
+		NAG[x]['nagframestring'] = nagframestring
+		NAG[x]['NAG0'] = nag0junc
+		NAG[x]['NAG3'] = nag3junc
+		NAG[x]['NAG6'] = nag6junc
+		NAG[x]['TOTALFRAMENAG'] = len(nagframestarts)
 			#fiveprimeflank = fiveprimeflank.reverse_complement()
+
+
+
+	'''
+	fiveprimeflank = Seq(f[j1.chr][j1.start-offset:j1.start], IUPAC.unambiguous_dna)
+	threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+offset], IUPAC.unambiguous_dna)
+	fiveprimeIntron = Seq(f[j1.chr][j1.start:j1.start + offset], IUPAC.unambiguous_dna)
+	threeprimeIntron = Seq(f[j1.chr][j1.end-offset:j1.end], IUPAC.unambiguous_dna)
+	donormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
+	acceptormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+	acceptormotif = acceptormotif.upper()
+	donormotif = donormotif.upper()
+	dastring = donormotif + '..' + acceptormotif
+	else:
+	fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+offset], IUPAC.unambiguous_dna)
+	threeprimeflank = Seq(f[j1.chr][j1.start-offset:j1.start], IUPAC.unambiguous_dna)
+	fiveprimeflank = fiveprimeflank.reverse_complement()
+	threeprimeflank = threeprimeflank.reverse_complement()
+	fiveprimeIntron = Seq(f[j1.chr][j1.end-offset:j1.end], IUPAC.unambiguous_dna)
+	threeprimeIntron = Seq(f[j1.chr][j1.start:j1.start+offset], IUPAC.unambiguous_dna)
+	fiveprimeIntron = fiveprimeIntron.reverse_complement()
+	threeprimeIntron = threeprimeIntron.reverse_complement()
+	acceptormotif = Seq(f[j1.chr][j1.start:j1.start+2], IUPAC.unambiguous_dna)
+	donormotif = Seq(f[j1.chr][j1.end-2:j1.end], IUPAC.unambiguous_dna)
+	acceptormotif = acceptormotif.upper()
+	donormotif = donormotif.upper()
+	dastring = donormotif.reverse_complement() + '..' + acceptormotif.reverse_complement()
+	'''
+
 
 
 	myjuncs.sort()
@@ -1312,14 +1446,6 @@ def main():
 		print >> juncs_out, junc
 
 
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Load an annotation, flattened as bam
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
- 	reffh = pysam.Samfile( reffile, "rb" )
-	edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
-	reffh.close()
-	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
 
 	
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1494,6 +1620,11 @@ def main():
 			GENEINFO[juncid]['regcode'] = "-"
 		else:
 			#print GENES[geneid]['gmcode']
+			'''
+			If more than one gene, take the first
+			'''
+			mygene = str.split(geneid,",")[0]
+			geneid = mygene
 			GENEINFO[juncid]['gmcode'] = GENES[geneid]['gmcode']
 			GENEINFO[juncid]['regcode'] = GENES[geneid]['regcode']
 	print >> sys.stderr, "[%s] Done adding gene-model codes to results hash" % (spanki_utils.timestamp())
@@ -1521,7 +1652,7 @@ def main():
 
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
-	fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag']
+	fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag']
 	for juncid in myjuncs:
 		j1 = Junctionid(juncid)
 		RESULTS[juncid]['intron_size'] = j1.intronsize
@@ -1534,7 +1665,12 @@ def main():
 		RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
 		RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
 		RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
-		RESULTS[juncid]['nag'] = NAG[juncid]
+		RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+		RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
+		RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
+		RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
+		RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
+		RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
 
 	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
 
