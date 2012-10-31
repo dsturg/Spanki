@@ -47,11 +47,11 @@ junccomp -a female_repsmerged.juncs -b male_repsmerged.juncs -o F_vs_M_junccomp
 ########################
 
 # Annotating a junction set (From a junction table)
-python ~/programs/spanki/bin/annotate_junctions -o female_rep1_annotated_junctab -jtab female_rep1/juncs.all -f ~/data/indexes/dm3_NISTnoUextra.fa -g ~/data/annotation/dmel_BDGP5.39.67_ed.gtf
+annotate_junctions -o female_rep1_annotated_junctab -jtab female_rep1/juncs.all -f ~/data/indexes/dm3_NISTnoUextra.fa -g ~/data/annotation/dmel_BDGP5.39.67_ed.gtf
 # Annotating a junction set (From a junction list)
-python ~/programs/spanki/bin/annotate_junctions -o female_rep1_annotated_junclist -jlist female_rep1/juncs.list -f ~/data/indexes/dm3_NISTnoUextra.fa -g ~/data/annotation/dmel_BDGP5.39.67_ed.gtf
+annotate_junctions -o female_rep1_annotated_junclist -jlist female_rep1/juncs.list -f ~/data/indexes/dm3_NISTnoUextra.fa -g ~/data/annotation/dmel_BDGP5.39.67_ed.gtf
 # Annotating annotated junctions
-python ~/programs/spanki/bin/annotate_junctions -o annotated_reference_juncs -f ~/data/indexes/dm3_NISTnoUextra.fa -g ~/data/annotation/dmel_BDGP5.39.67_ed.gtf
+annotate_junctions -o annotated_reference_juncs -f ~/data/indexes/dm3_NISTnoUextra.fa -g ~/data/annotation/dmel_BDGP5.39.67_ed.gtf
 
 
 
