@@ -418,7 +418,8 @@ def intron_readthrough(myjuncs,samfile):
 
 		# Check left side
 		lirt = 0
-		rangestart = j1.start - readlength - overhang
+		#rangestart = j1.start - readlength - overhang
+		rangestart = j1.start - readlength + overhang
 		rangeend = j1.start - overhang
 		if (rangestart < 0): rangestart = 0
 		# Need this for cases where a junciton is near 
