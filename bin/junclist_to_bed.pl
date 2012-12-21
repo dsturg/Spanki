@@ -38,7 +38,7 @@ my $blockstart1;
 my $blockstart2;
 
 my @g;
-
+my @h;
 #my $readkey;
 
 #my %readhash;
@@ -57,23 +57,24 @@ while ($line = <SEQ>){
   
 @f = split /\t+/,$line;
 
-	if ($line =~ /chr/) {
+	if ($line !~ /juncid/) {
 		chomp $line;
 		@f = split /\t+/,$line;
-		@g = split /[\:\_]+/,$f[0];
+		@g = split /[\:]+/,$f[0];
+		@h = split /[\_]+/,$g[1];
 		$chromo = $g[0];
 		#$chromo =~ s/chr//;
-		$intronstart = $g[1] - 1;
-		$intronend = $g[2];
-		$strand = $g[3];
+		$intronstart = $h[0] - 1;
+		$intronend = $h[1];
+		$strand = $g[2];
 		
 		$juncid = $f[0];
-		
-		if ($f[1]) {
-			$coverage = $f[1];
-		} else {
-			$coverage = 1
-		}
+		$coverage = $f[1];
+		#if ($f[1]) {
+		#	$coverage = $f[1];
+		#} else {
+	#		$coverage = 1
+		#}
 		
 		#print $line,"\n";
 		#print "$chromo\t$start\t$leftend\t$rightstart\t$end\n";
