@@ -1176,6 +1176,11 @@ juncs_out = open(juncs_out_name, "w")
 juncs_all_out_name = output_dir + "/juncs.all"
 juncs_all_out = open(juncs_all_out_name, "w")
 
+don_out_name = output_dir + "/donors.txt"
+don_out = open(don_out_name, "w")
+acc_out_name = output_dir + "/acceptors.txt"
+acc_out = open(acc_out_name, "w")
+
 if gtffile:
 	ann_summary_out_name = output_dir + "/annotation_summary.txt"
 	ann_summary = open(ann_summary_out_name, "w")
@@ -1280,12 +1285,38 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	if gtffile:
+	
+		print >> sys.stderr, "[%s] Prototyping in/outdegree" % (spanki_utils.timestamp())
+		reffh = pysam.Samfile( reffile, "rb" )
+		EDGconnections, donlist, acclist = spanki_parse_utils.edgeConnections(reffh)
+		reffh.close()
+		acc_indegree = collections.defaultdict(lambda : collections.defaultdict(dict))
+		don_outdegree = collections.defaultdict(lambda : collections.defaultdict(dict))
+		for edge in acclist:
+			acc_indegree[edge] = len(list(set(EDGconnections[edge])))
+		for edge in donlist:
+			don_outdegree[edge] = len(list(set(EDGconnections[edge])))
+	
+	
 		print >> sys.stderr, "[%s] Trying to load annotation as bam" % (spanki_utils.timestamp())
 		reffh = pysam.Samfile( reffile, "rb" )
 		edgedict, refjuncs = spanki_parse_utils.parseRefAsBam(reffh)
 		reffh.close()
 		print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
-
+		reffh = pysam.Samfile( reffile, "rb" )
+		TXDATA, JUNCTIONS, JUNCSTARTD, JUNCENDD = spanki_parse_utils.get_junc_positions(reffh)
+		reffh.close()
+		#for tx in TXDATA.keys():
+		#	print tx, TXDATA[tx]
+		#for x in JUNCTIONS.keys():
+		#	for y in JUNCENDD[x]:
+		#		print 1000 - y
+		#	print x, JUNCTIONS[x], "foo", JUNCSTARTD[x], "bar", JUNCENDD[x]
+		#quit()
+	
+	
+	
+	
 	
 	#~~~~~~~~~~~~~~~~~~~
 	# Load reference (input jtab) junction list
@@ -1310,6 +1341,7 @@ def main():
 	################################
 	#  Analysis 1:  NAG/NAG
 	#  Does not require gene models 
+	#  Requires fasta sequence
 	################################
 	################################
 
@@ -1565,6 +1597,7 @@ def main():
 	################################
 	#  Analysis 3:  Sequence analysis
 	#  Does not require gene models
+	#  Requires fasta
 	################################
 	################################
 
@@ -1663,7 +1696,16 @@ def main():
 	print_dict_ordered(INTSEQ,juncs_seq,fieldorder)		
 	#printDict(RESULTS,juncs_all_out)
 
-	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Printing donors and acceptors
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	
+ 	for edge in donlist:
+ 		print >> don_out, edge, don_outdegree[edge] 
+ 	for edge in acclist:
+ 		print >> acc_out, edge, acc_indegree[edge] 
+
+
 
 
 	print >> log_out, "[%s] Run completed" % (spanki_utils.timestamp())
