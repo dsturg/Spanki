@@ -1353,9 +1353,9 @@ def main():
 
 	
 	for x in myjuncs:
-		#print x
+		print x
 		j1 = Junctionid(x)
-		#j1.display()
+		j1.display()
 		nag0junc = "-"
 		nag3junc = "-"
 		nag6junc = "-"
@@ -1700,10 +1700,11 @@ def main():
  	# Printing donors and acceptors
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
- 	for edge in donlist:
- 		print >> don_out, edge, don_outdegree[edge] 
- 	for edge in acclist:
- 		print >> acc_out, edge, acc_indegree[edge] 
+	if gtffile:
+		for edge in donlist:
+			print >> don_out, edge, don_outdegree[edge] 
+		for edge in acclist:
+			print >> acc_out, edge, acc_indegree[edge] 
 
 
 
