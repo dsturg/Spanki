@@ -193,6 +193,19 @@ def main():
 			acc_irt1 = int(tab1[x]['lirt'])
 			acc_irt2 = int(tab2[x]['lirt'])
 	
+		'''
+		Check for empty cells, replace with zero
+		'''
+		if not tab1[x]['cov']: tab1[x]['cov'] = 0
+		if not tab1[x]['irt']: tab1[x]['irt'] = 0
+		if not tab1[x]['ancov']: tab1[x]['ancov'] = 0
+		if not tab1[x]['dncov']: tab1[x]['dncov'] = 0
+		if not tab2[x]['cov']: tab2[x]['cov'] = 0
+		if not tab2[x]['irt']: tab2[x]['irt'] = 0
+		if not tab2[x]['ancov']: tab2[x]['ancov'] = 0
+		if not tab2[x]['dncov']: tab2[x]['dncov'] = 0
+	
+		
 		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['irt']) , int(tab2[x]['cov']), int(tab2[x]['irt']))
 		myresults[x]['pval_irt'] = p.two_tail
 		p_irt.append(p.two_tail)
