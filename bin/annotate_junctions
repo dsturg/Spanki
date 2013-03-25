@@ -1094,6 +1094,7 @@ def parse_options(desc):
 		help="Fasta file\n"
 		"Must have same chromosomes as BAM and GTF")
 	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
+	parser.add_argument('-s', type=int, help='Flanking intron sequence (number of bases)', action="store", dest="s")
 	args = parser.parse_args()
 	# See here for argparse instructions:
 	# http://docs.python.org/dev/library/argparse.html
@@ -1129,6 +1130,7 @@ outfile = args.o
 gtffile = args.g
 #method = args.m
 fastafile = args.f
+flankseq = args.s
 #filter = args.filter
 
 # Checking that input files exist
@@ -1353,9 +1355,9 @@ def main():
 
 	
 	for x in myjuncs:
-		print x
+		#print '*', x
 		j1 = Junctionid(x)
-		j1.display()
+		#j1.display()
 		nag0junc = "-"
 		nag3junc = "-"
 		nag6junc = "-"
@@ -1605,10 +1607,20 @@ def main():
  	# Extract sequence info for each join
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
- 	offset = 20
+ 	#offset = 20
+ 	offset = flankseq
  	INTSEQ = intron_sequence(myjuncs,f,offset)
 	print >> sys.stderr, "[%s] Extracted intron sequence" % (spanki_utils.timestamp())
 
+	################################
+	################################
+	#  Analysis 4:  Hamming
+	#  Does not require gene models 
+	#  Requires fasta sequence
+	################################
+	################################
+	print >> sys.stderr, "[%s] Getting intron / anchor similarity" % (spanki_utils.timestamp())
+	ANCHAM = anchor_hamming(myjuncs,f)
 
 	################################
 	################################
@@ -1645,7 +1657,7 @@ def main():
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	if gtffile:
-		fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag']
+		fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
@@ -1664,8 +1676,10 @@ def main():
 			RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
 			RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
 			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+			RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
+			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
 	else:
-		fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag']
+		fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
@@ -1676,6 +1690,8 @@ def main():
 			RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
 			RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
 			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+			RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
+			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
 	
 	
 
