@@ -867,6 +867,7 @@ def intron_sequence(myjuncs,f,offset):
  	INTSEQ = collections.defaultdict(lambda : collections.defaultdict(dict))
 	for juncid in myjuncs:
 		j1 = Junctionid(juncid)
+		j1.display()
 		if j1.strand == '+':
 			fiveprimeflank = Seq(f[j1.chr][j1.start-offset:j1.start], IUPAC.unambiguous_dna)
 			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+offset], IUPAC.unambiguous_dna)

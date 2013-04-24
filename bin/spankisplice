@@ -221,8 +221,16 @@ def geneidsFromTxlist(txlist,lookup):
 	geneids = {}
 	genenames = {}
 	for tx in txlist:
-		geneids[lookup[tx]["gene_id"]] = 1
-		genenames[lookup[tx]["gene_name"]] = 1
+		#print tx
+		#print lookup[tx]
+		try:
+			geneids[lookup[tx]["gene_id"]] = 1
+		except:
+			pass
+		try: 
+			genenames[lookup[tx]["gene_name"]] = 1
+		except:
+			pass
 	gidlist = geneids.keys()
 	gids = str(','.join(gidlist))
 	gnamelist = genenames.keys()
