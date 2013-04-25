@@ -947,7 +947,7 @@ def main():
 		linedict = parse_asta_defs(line,lookup)
 		if linedict:
 			counter += 1		
-			eventid = 'ASTA' + "%05d" % (counter,)
+			eventid = 'ASTA' + "%07d" % (counter,)
 			#print line
 			joins = []
 			joins.extend(linedict['joins2'])
