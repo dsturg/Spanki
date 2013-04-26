@@ -1026,7 +1026,7 @@ def main():
 	excluded = 0
 	for newid in mergedict.keys():
 		counter += 1		
-		eventid = 'ASTA' + "%05d" % (counter,)
+		eventid = 'ASTA' + "%07d" % (counter,)
 		eventdict[eventid] = mergedict[newid]
 		eventdict[eventid]['txlist1'] = uniq(eventdict[eventid]['txlist1'])
 		eventdict[eventid]['txlist2'] = uniq(eventdict[eventid]['txlist2'])
