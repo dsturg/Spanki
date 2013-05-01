@@ -867,7 +867,7 @@ def intron_sequence(myjuncs,f,offset):
  	INTSEQ = collections.defaultdict(lambda : collections.defaultdict(dict))
 	for juncid in myjuncs:
 		j1 = Junctionid(juncid)
-		j1.display()
+		#j1.display()
 		if j1.strand == '+':
 			fiveprimeflank = Seq(f[j1.chr][j1.start-offset:j1.start], IUPAC.unambiguous_dna)
 			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+offset], IUPAC.unambiguous_dna)
@@ -1095,7 +1095,7 @@ def parse_options(desc):
 		help="Fasta file\n"
 		"Must have same chromosomes as BAM and GTF")
 	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
-	parser.add_argument('-s', type=int, help='Flanking intron sequence (number of bases)', action="store", dest="s")
+	parser.add_argument('-s', type=int, help='Flanking intron sequence (number of bases)', action="store", dest="s", default=20)
 	args = parser.parse_args()
 	# See here for argparse instructions:
 	# http://docs.python.org/dev/library/argparse.html
@@ -1289,7 +1289,7 @@ def main():
 
 	if gtffile:
 	
-		print >> sys.stderr, "[%s] Prototyping in/outdegree" % (spanki_utils.timestamp())
+		print >> sys.stderr, "[%s] Acceptor/Donor in/out degree" % (spanki_utils.timestamp())
 		reffh = pysam.Samfile( reffile, "rb" )
 		EDGconnections, donlist, acclist = spanki_parse_utils.edgeConnections(reffh)
 		reffh.close()
@@ -1348,7 +1348,7 @@ def main():
 	################################
 	################################
 
-	print >> sys.stderr, "[%s] Analyzing NAGNAG motifs" % (spanki_utils.timestamp())
+	print >> sys.stderr, "[%s] Analyzing sequence for NAGNAG" % (spanki_utils.timestamp())
 
 	offset = 9
 	
