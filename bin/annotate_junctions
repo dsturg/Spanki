@@ -1178,6 +1178,8 @@ juncs_out_name = output_dir + "/juncs.list"
 juncs_out = open(juncs_out_name, "w")
 juncs_all_out_name = output_dir + "/juncs.all"
 juncs_all_out = open(juncs_all_out_name, "w")
+juncs_brief_out_name = output_dir + "/juncs.brief"
+juncs_brief_out = open(juncs_brief_out_name, "w")
 
 don_out_name = output_dir + "/donors.txt"
 don_out = open(don_out_name, "w")
@@ -1252,8 +1254,30 @@ def main():
 	global f
 	# Opening fasta filehandle
 	print >> sys.stderr, "[%s] Opening fasta file" % (spanki_utils.timestamp())
-	f = Fasta(fastafile)
+	#fkey = Fasta('tests/data/key.fasta', key_fn=lambda key: key.split()[0]) 
+	
+	'''
+	The below reads in a fasta file, and keys it on only  
+	the first part of the header line.  For example, if the header is:
+	  >1 dna_sm:chromosome chromosome:GRCm38:1:1:195471971:1 REF
+	then it will be keyed just on:
+	  1
+	
+	Note that I've found that sometimes downloaded genome references 
+	do not parse correctly this way.  In those cases, if I stream
+	and copy it like this:
+	  cat genome.fa > newgenome.fa
+	 then it works correctly
+	'''
+	f = Fasta(fastafile, key_fn=lambda key: key.split()[0])
+	#f = Fasta(fastafile, key_fn=lambda key: re.split("[\s\|]", key)[0])
+
+	
+
+
 	fastachr = set(sorted(f.keys()))
+	print('\n'.join(f.keys()))
+	
 
  	'''
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1694,9 +1718,38 @@ def main():
 			RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
 			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
 	
-	
 
 	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Make a briefer version of the junction results table
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
+
+	if gtffile:
+		fieldorder = ['annostatus','geneassign','gmcode','regcode','dinucleotide','intron_size','nag']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
+			RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
+			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
+			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+	else:
+		fieldorder = ['dinucleotide','intron_size','nag']
+		for juncid in myjuncs:
+			j1 = Junctionid(juncid)
+			RESULTS[juncid]['intron_size'] = j1.intronsize
+			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
+			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+
+	
+
+	print_dict_ordered(RESULTS,juncs_brief_out,fieldorder)
+
 
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
