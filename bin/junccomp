@@ -129,8 +129,8 @@ outfile = args.o
 output_dir = outfile
 spanki_utils.prepare_basic_output_dir(output_dir)
 
-verbose_comp_out_name = output_dir + "/junc_compare_verbose.out"
-verbose_comp_out = open(verbose_comp_out_name, "w")
+#verbose_comp_out_name = output_dir + "/junc_compare_verbose.out"
+#verbose_comp_out = open(verbose_comp_out_name, "w")
 
 concise_comp_out_name = output_dir + "/junc_compare.out"
 concise_comp_out = open(concise_comp_out_name, "w")
@@ -206,15 +206,28 @@ def main():
 		if not tab2[x]['dncov']: tab2[x]['dncov'] = 0
 	
 		
+		## IRT comparison
 		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['irt']) , int(tab2[x]['cov']), int(tab2[x]['irt']))
 		myresults[x]['pval_irt'] = p.two_tail
 		p_irt.append(p.two_tail)
-		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']))
+
+		## Donor-level test
+		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + donor_irt1, int(tab2[x]['cov']), int(tab2[x]['dncov']) + donor_irt2)
 		myresults[x]['pval_dncov'] = p.two_tail
 		p_dncov.append(p.two_tail)
+
+		## Donor-level test (Deprecated)
+		#p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']))
+		#myresults[x]['pval_dncov'] = p.two_tail
+		#p_dncov.append(p.two_tail)
+
+		## Acceptor-level test  (No longer reported)
 		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['ancov']))
 		myresults[x]['pval_ancov'] = p.two_tail
 		p_ancov.append(p.two_tail)
+
+		## First order connections test (No longer reported)
+		## Compare junction coverage to donor-neighbor and acceptor-neighbor coverage.
 		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']) + int(tab2[x]['ancov']))
 		myresults[x]['pval_tncov'] = p.two_tail
 		p_tncov.append(p.two_tail)
@@ -320,8 +333,9 @@ def main():
 		#if (q < 0.05):  
 			#print >> comp_out, "Q:", q
 			
+
+	'''	
 	for x in myresults:
-		#print >> comp_out, event, myresults[event]['inc1'], myresults[event]['exc1'], myresults[event]['inc2'], myresults[event]['exc2'], myresults[event]['pval'], qconv[myresults[event]['pval']]
 		myresults[x]['qval_irt'] = qconv_irt[myresults[x]['pval_irt']]
 		myresults[x]['qval_ancov'] = qconv_ancov[myresults[x]['pval_ancov']]
 		myresults[x]['qval_dncov'] = qconv_dncov[myresults[x]['pval_dncov']]
@@ -336,11 +350,10 @@ def main():
 
 	sortfield = 'minp'
 	print_dict_sorted_ordered(myresults,verbose_comp_out,sortfield,fieldorder)
+	'''
 	
-	### Try generating just the donor and irt tables
-
+	## Add q values
 	for x in myresults:
-		#print >> comp_out, event, myresults[event]['inc1'], myresults[event]['exc1'], myresults[event]['inc2'], myresults[event]['exc2'], myresults[event]['pval'], qconv[myresults[event]['pval']]
 		myresults[x]['qval_irt'] = qconv_irt[myresults[x]['pval_irt']]
 		myresults[x]['qval_ancov'] = qconv_ancov[myresults[x]['pval_ancov']]
 		myresults[x]['qval_dncov'] = qconv_dncov[myresults[x]['pval_dncov']]

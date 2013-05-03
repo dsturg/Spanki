@@ -732,6 +732,7 @@ def parseions(desc):
 		help="Cufflinks output\n"
 		"The isoforms.fpkm_tracking file, to extract FPKMs (optional)")
 	parser.add_argument('-o', help="Output directory, default='spankisplice_out'", action="store", dest="o", default="spankisplice_out")
+	parser.add_argument('-v', help="Vebosely report event tables, default=F", action="store", dest="v", default="F")
 	args = parser.parse_args()
 	if len(sys.argv)==1:
 		parser.print_help()
@@ -759,6 +760,7 @@ jfile = args.jtab
 cfile = args.c
 astafile = args.a
 fastafile = args.f
+verbose = args.v
 
 
 
@@ -800,17 +802,20 @@ output_dir = outfile
 spanki_utils.prepare_output_dir(output_dir)
 # Prepare output file names
 
-asta_counts_out_opt_name = output_dir + "/events_opt.out"
-asta_counts_out_opt = open(asta_counts_out_opt_name, "w")
-
-asta_counts_out_all_name = output_dir + "/events_all.out"
-asta_counts_out_all = open(asta_counts_out_all_name, "w")
-
-asta_counts_out_prec_name = output_dir + "/events_prec.out"
-asta_counts_out_prec = open(asta_counts_out_prec_name, "w")
-
 asta_counts_out_sens_name = output_dir + "/events.out"
 asta_counts_out_sens = open(asta_counts_out_sens_name, "w")
+
+if (verbose != "F"):
+
+	asta_counts_out_opt_name = output_dir + "/events_opt.out"
+	asta_counts_out_opt = open(asta_counts_out_opt_name, "w")
+	
+	asta_counts_out_all_name = output_dir + "/events_all.out"
+	asta_counts_out_all = open(asta_counts_out_all_name, "w")
+	
+	asta_counts_out_prec_name = output_dir + "/events_prec.out"
+	asta_counts_out_prec = open(asta_counts_out_prec_name, "w")
+
 
 unassayable_events_counts_out_name = output_dir + "/unassayable_events.out"
 unassayable_events_out = open(unassayable_events_counts_out_name, "w")
@@ -1063,25 +1068,11 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-	'''
-	ALL modes (optimum, sensitive, precise)
-	'''
-	if cfile:
-		#fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi','fpkm1','fpkm2','fpkm_proportion']
-	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
 
-	#'joinstring','inc_sites','exc_sites','inc','exc', 'psi',
-
-	#if cfile:
-	#	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj', 'fpkm1','fpkm2','fpkm_proportion']
-	#else:
-	#	fieldorder = ['gnames','gids','gnames', 'eventcode','structure','transcript_id','joinstring','inc_sites','exc_sites','inc','exc', 'psi','inc_adj','exc_adj', 'psi_adj']
-	
-	RESULTS = eventdict
-	print_output_table_firstiskey(RESULTS,asta_counts_out_all,fieldorder)
-
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# This is the one that is reported by default.  
+ 	# The other tables are only reported if verbose=T
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	'''
 	sens mode
@@ -1092,6 +1083,7 @@ def main():
 		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 
 	
+	RESULTS = eventdict
 	for i in RESULTS:
 		RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_sens']
 		RESULTS[i]['incov'] = RESULTS[i]['inccov_sens']
@@ -1106,40 +1098,54 @@ def main():
 
 	print_output_table_firstiskey(RESULTS,asta_counts_out_sens,fieldorder)
 
-	'''
-	prec mode
-	'''
-	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
-	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 
+	'''
+	ALL modes (optimum, sensitive, precise)
+	'''
 	
-	RESULTS = eventdict
-	for i in RESULTS:
-		RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_prec']
-		RESULTS[i]['incov'] = RESULTS[i]['inccov_prec']
-		RESULTS[i]['excov'] = RESULTS[i]['exccov_prec'] 
-		RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_prec']
-		RESULTS[i]['exc_sites'] = RESULTS[i]['exc_sites_prec'] 
-		RESULTS[i]['inc'] = RESULTS[i]['inc_prec']
-		RESULTS[i]['exc'] = RESULTS[i]['exc_prec'] 
-		RESULTS[i]['totalcov'] = RESULTS[i]['totalcov_prec']
-		RESULTS[i]['avgcovpersite'] = RESULTS[i]['avgcovpersite_prec'] 
-		RESULTS[i]['psi'] = RESULTS[i]['psi_prec'] 
-	print_output_table_firstiskey(RESULTS,asta_counts_out_prec,fieldorder)
+	if (verbose != "F"):
+		if cfile:
+			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi','fpkm1','fpkm2','fpkm_proportion']
+		else:
+			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
 
-	'''
-	opt mode
-	'''
-	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
-	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
+		RESULTS = eventdict
+		print_output_table_firstiskey(RESULTS,asta_counts_out_all,fieldorder)
 
+		'''
+		prec mode
+		'''
+		if cfile:
+			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		else:
+			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 	
-	RESULTS = eventdict
-	print_output_table_firstiskey(RESULTS,asta_counts_out_opt,fieldorder)
+		
+		RESULTS = eventdict
+		for i in RESULTS:
+			RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_prec']
+			RESULTS[i]['incov'] = RESULTS[i]['inccov_prec']
+			RESULTS[i]['excov'] = RESULTS[i]['exccov_prec'] 
+			RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_prec']
+			RESULTS[i]['exc_sites'] = RESULTS[i]['exc_sites_prec'] 
+			RESULTS[i]['inc'] = RESULTS[i]['inc_prec']
+			RESULTS[i]['exc'] = RESULTS[i]['exc_prec'] 
+			RESULTS[i]['totalcov'] = RESULTS[i]['totalcov_prec']
+			RESULTS[i]['avgcovpersite'] = RESULTS[i]['avgcovpersite_prec'] 
+			RESULTS[i]['psi'] = RESULTS[i]['psi_prec'] 
+		print_output_table_firstiskey(RESULTS,asta_counts_out_prec,fieldorder)
+	
+		'''
+		opt mode
+		'''
+		if cfile:
+			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		else:
+			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
+	
+		
+		RESULTS = eventdict
+		print_output_table_firstiskey(RESULTS,asta_counts_out_opt,fieldorder)
 
 
 	'''
