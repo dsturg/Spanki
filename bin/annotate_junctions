@@ -1276,7 +1276,8 @@ def main():
 
 
 	fastachr = set(sorted(f.keys()))
-	print('\n'.join(f.keys()))
+	# To test how it is parsing fasta header lines:
+	#print('\n'.join(f.keys()))
 	
 
  	'''
