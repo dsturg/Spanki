@@ -674,6 +674,25 @@ def print_dict_ordered(mydict,fout,fieldorder):
 		print >> fout, '\t'.join(results)
 		#print >> fout, x, '\t', '\t'.join(map(str,vals))
 
+def print_dict_ordered_generic(mydict,fout,fieldorder):
+	#mykeys = fieldorder
+	mykeys = mydict.keys()
+	mykeys.sort()
+	headings = ['id']
+	headings.extend(fieldorder)
+	print >> fout, '\t'.join(headings)
+
+	#print >> fout, "juncid\t", '\t'.join(fieldorder)
+	for x in mykeys:
+		vals = []
+		for field in fieldorder:
+			vals.append(mydict[x][field])
+		# Fixing it so it doesn't add a space to the junction id
+		results = [x]
+		results.extend(map(str,vals))
+		print >> fout, '\t'.join(results)
+		#print >> fout, x, '\t', '\t'.join(map(str,vals))
+
 def uniq(seq): 
 	# Not order preserving 
 	keys = {} 
@@ -1180,6 +1199,8 @@ juncs_all_out_name = output_dir + "/juncs.all"
 juncs_all_out = open(juncs_all_out_name, "w")
 juncs_brief_out_name = output_dir + "/juncs.brief"
 juncs_brief_out = open(juncs_brief_out_name, "w")
+genes_out_name = output_dir + "/genes.txt"
+genes_out = open(genes_out_name, "w")
 
 don_out_name = output_dir + "/donors.txt"
 don_out = open(don_out_name, "w")
@@ -1777,8 +1798,16 @@ def main():
 		for edge in acclist:
 			print >> acc_out, edge, acc_indegree[edge] 
 
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# Printing Gene-centered info (prototype)
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	
+	if gtffile:
+		fieldorder = ['gmcode', 'regcode']
+		print_dict_ordered(GENES,genes_out,fieldorder)
 
-
+	#for geneid in GENES.keys():
+		#print GENES[geneid]
 
 	print >> log_out, "[%s] Run completed" % (spanki_utils.timestamp())
 	
