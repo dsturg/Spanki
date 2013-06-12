@@ -1802,8 +1802,16 @@ def main():
  	# Printing Gene-centered info (prototype)
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
+ 	 #{'start': [6026834], 'intron': ['chr3L:6027394_6027445:-'], '
+ 	
+ 	# Add number of TSS and number of introns to dict
+ 	# This is repetitive with 'gmcode', but convenient for parsing
+ 	for geneid in GENES.keys():
+ 		GENES[geneid]['startNum'] = len(GENES[geneid]['start'])
+ 		GENES[geneid]['intronNum'] = len(GENES[geneid]['intron'])
+ 	
 	if gtffile:
-		fieldorder = ['gmcode', 'regcode']
+		fieldorder = ['startNum','intronNum','gmcode', 'regcode']
 		print_dict_ordered(GENES,genes_out,fieldorder)
 
 	#for geneid in GENES.keys():
