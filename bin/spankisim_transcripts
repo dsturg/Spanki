@@ -245,6 +245,161 @@ def sam2junc(cigartuple,strand,chr,start):
 	return juncid
 
 
+def simReadDev(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmposprob, TX, spl2pre, f, refjuncs, qualscore, mmqual):
+
+	'''
+	Choose random start
+	'''
+	randstart = random.randint(0, len(myseq) - mybp - 1)
+
+	'''
+	Get read sequence
+	'''
+	read = myseq[randstart:randstart + mybp]
+	
+	'''
+	Get position in parent transcript and in genome
+	'''
+	prestart = spl2pre[randstart]
+	preend = spl2pre[randstart + mybp]
+
+	genomicstart = pre2genome[prestart]
+	mystart = genomicstart
+	genomicend = pre2genome[preend]
+
+	'''
+	Make cigar string
+	'''
+	readcigar = mycigar[prestart:preend]
+	
+	'''
+	Randomly flip strand, but remember original strand
+	'''
+	mystrand = strandidx[0]
+	flip = random.randrange(2)
+	if (flip > 0): 
+		mystrand = strandidx[1]
+	
+	'''
+	Track reads than span splice junctions
+	jsr means 'Junction Spanning Read'
+	'''
+	jsr = 0
+	if len(mycigar) > mybp:
+		newcigar = implodeCigar(readcigar)
+		jsr += 1
+	else:
+		newcigar = str(mybp) + "M"
+
+	if mystrand == "-":
+		read = read.reverse_complement()
+
+	if bool(jsr):	
+		checkread = getReadSequence(mystart, TX[mytx]['chr'], mystrand, newcigar, f)
+		if str(read) != str(checkread):
+			print read
+			print checkread
+			quit()
+
+	'''
+	Get counts of simmed reads for each junc
+	'''
+	
+	if bool(jsr): # If it is a junction spanning read
+		cigartuple = cigarToTuple(newcigar)
+		#print cigartuple
+		#print genomicstart
+		mystart = genomicstart
+		while len(cigartuple) > 1:
+			mytuple = cigartuple[0:3]
+			cigartuple = cigartuple[2:]
+			minoverhang = mybp
+			#print "Getting counts", newcigar, mytuple
+			#Zero anchor example:
+			#Getting counts 76M23846N [[0, 76], [3, 23846]]
+			for i in mytuple:
+				if i[0] == 0:
+					if i[1] == mybp: minoverhang = 0
+					if minoverhang > i[1]: minoverhang = i[1]
+			juncid = sam2junc(mytuple,strandidx[0],TX[mytx]['chr'],mystart)
+			if juncid in refjuncs:
+				if minoverhang > 0:
+					JUNCRESULTS[juncid]['totalcov'] += 1
+					if minoverhang >= 8:
+						JUNCRESULTS[juncid]['effectivecov'] += 1
+				else:
+					newcigar = str(mybp) + "M"
+			else:
+				print juncid, "simmed, NOT in annotation"
+				quit()
+			mystart = mystart + mytuple[0][1] + mytuple[1][1]
+
+
+	pretty_readnum = "%05d" % readnum
+	if mystrand == "+":
+		pretty_strand = "plus"
+	else:
+		pretty_strand = "minus"
+		read = read.reverse_complement()
+
+	'''
+	Induce Mismatches
+	'''
+	bases = ['A','G','C','T']
+	'''
+	Uses the model to determine how many total mismatches to induce
+	'''
+	mmnum = weighted_choice(mmprob)
+	#print "Will induce ", mmnum, "mismatches"
+	for mm in range(mmnum):
+		'''
+		Uses the model to determine where to put mismatches
+		'''
+		mmpos = weighted_choice(mmposprob)
+		oldbase = read[mmpos]
+		newbase = oldbase
+		while oldbase == newbase:
+			newbase = choice(bases)
+		read = read[0:mmpos] + newbase + read[mmpos+1:]
+		# substitute lower quality in position where mismatch is in
+		qualscore = qualscore[0:mmpos] + mmqual + qualscore[mmpos+1:]
+
+	# Note that in SAM file, read is presented as strand it aligns to, not as the read 
+	# comes off the machine
+
+	'''
+	Make the read ID
+	'''
+
+	id = mytx + "_" + str(pretty_readnum) + "_" + TX[mytx]['chr'] + ":" + str(genomicstart + 1) + ":" + pretty_strand + "_NM" + str(mmnum) + "_" + newcigar + "#0/1"
+	readid = "@" + id
+
+	readtuple = [readid,read,"+",qualscore]
+
+	'''
+	Make a samfile line
+	'''
+
+	samline = []
+	samline.append(id)
+	if mystrand == "+":
+		samline.append("0")
+	else:
+		samline.append("16")
+	samline.append(TX[mytx]['chr'])
+	samline.append(str(genomicstart + 1))
+	samline.append("255")
+	samline.append(newcigar)
+	samline.append("*")
+	samline.append("0")
+	samline.append("0")
+	samline.append(str(read))
+	samline.append(qualscore)
+	samline.append("NM:i:" + str(mmnum))
+	samline.append("XS:A:" + strandidx[0])
+	samline.append("NH:i:1")
+	return readtuple, samline
+
 def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmposprob, TX, spl2pre, f, refjuncs, qualscore, mmqual):
 
 	'''
@@ -1213,6 +1368,11 @@ def main():
 		'''
 		startweights_spliced = getStartweights(str(myseq_spliced),mers,seqweights)
 		startweights_unspliced = getStartweights(str(myseq_unspliced),mers,seqweights)
+		
+		print "startweights_spliced:\n"
+		print startweights_spliced
+		print "startweights_unspliced:\n"
+		print startweights_unspliced
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Set up indexes to keep track of position, strand
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
@@ -1223,16 +1383,23 @@ def main():
 		Note 'pre' is meant to be like the pre-mRNA, the unspliced transcript
 		'''
 		pre2genome = range(TX[mytx]['start'],TX[mytx]['start'] + prelength)
+		print "pre2genome"
+		print pre2genome
 		'''
 		precigar is a string that helps to construct the cigar string later 
-		based on where the read is exracted from
+		based on where the read is extracted from
 		'''
 		precigar = explodingCigar(TX[mytx]['chain'])
+		print "precigar\n"
+		print precigar
 
 		# Getting an index of GENOMIC coordinates
 		#coordidx, splicedcoordidx, indexstring = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
 		#pre2genome, spl2pre = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
 		spl2pre = makePreRNAindex(TX[mytx]['chain'],TX[mytx]['start'])
+		print "spl2pre\n"
+		print spl2pre
+
 
 		strandidx = []
 		strandidx.append(TX[mytx]['strand'])
