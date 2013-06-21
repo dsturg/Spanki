@@ -177,7 +177,8 @@ class Junctionid:
 		chr = juncid.split(':')[0]
 		coords = juncid.split(':')[1]
 		strand = juncid.split(':')[2]
-		start = int(coords.split('_')[0]) - 1
+		start = int(coords.split('_')[0])
+		#start = int(coords.split('_')[0]) - 1
 		end = int(coords.split('_')[1])
 		self.chr = chr
 		self.start = start
@@ -724,8 +725,10 @@ def getJoinGeneAssign(myjuncs,refjuncs,edgedict,samfile,lookup):
 		j1 = Junctionid(juncid)
 		ancode = ""
 		if j1.strand == '+':
-			donid = j1.chr + ":" + str(j1.start+1)
-			accid = j1.chr + ":" + str(j1.end)
+			donid = j1.donid
+			accid = j1.accid
+			#donid = j1.chr + ":" + str(j1.start+1)
+			#accid = j1.chr + ":" + str(j1.end)
 			if juncid in refjuncs: 
 				ancode = "an"
 				if edgedict.has_key(donid):
@@ -1704,7 +1707,7 @@ def main():
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	if gtffile:
-		fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
+		fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5','donor_outdegree','acceptor_indegree']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
@@ -1725,6 +1728,8 @@ def main():
 			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
 			RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
 			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
+			RESULTS[juncid]['donor_outdegree'] = don_outdegree[j1.donid]
+			RESULTS[juncid]['acceptor_indegree'] = acc_indegree[j1.accid]
 	else:
 		fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
 		for juncid in myjuncs:

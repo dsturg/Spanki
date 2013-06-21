@@ -103,6 +103,65 @@ def edgeConnections(samfile):
 					junc_left_side = start + matches[i] + 1
 					junc_right_side = start + matches[i] + gaps[i] 
 					juncid = chr + ":" + str(junc_left_side) + "_" + str(junc_right_side) + ":" + strand
+					j1 = Junctionid(juncid)
+					donid = j1.donid
+					accid = j1.accid
+					#if (strand == '+'):
+					#	donid = chr + ":" + str(junc_left_side)
+					#	accid = chr + ":" + str(junc_right_side)
+					#else:
+					#	donid = chr + ":" + str(junc_right_side)
+					#	accid = chr + ":" + str(junc_left_side)
+					EDGconnections[donid].append(accid)
+					EDGconnections[accid].append(donid)
+					donlist.append(donid)
+					acclist.append(accid)
+					start = start + matches[i] + gaps[i];	
+					
+ 	#samfile.close()
+ 	donlist = list(set(donlist))
+ 	acclist = list(set(acclist))
+ 	return EDGconnections, donlist, acclist
+
+def edgeConnectionsPrevious(samfile):
+	EDGconnections = collections.defaultdict(list)
+	donlist = []
+	acclist = []
+	for alignedread in samfile:
+		if (len(alignedread.cigar) > 1):
+			strand = alignedread.tags[0][1] 
+			mytid = alignedread.tid
+			txid = str(alignedread.qname)
+			chr = samfile.getrname(mytid)
+			start = alignedread.pos
+			offset = start
+			gaps = []
+			matches = []
+			addnextmatch = 0
+			addtomatch = 0
+			for i in alignedread.cigar:
+				# Iterate over each entry in cigar
+				# matches should be appended 
+				if (i[0] == 0):
+					if addnextmatch > 0:
+						matches[-1] = matches[-1] + i[1] + addtomatch
+						addnextmatch = 0
+						addtomatch = 0
+					else: matches.append(i[1])
+				elif (i[0] == 3):
+					gaps.append(i[1])
+				elif (i[0] == 1):
+					addnextmatch += 1
+					addtomatch = 0
+				elif (i[0] == 2):
+					addnextmatch += 1
+					addtomatch = i[1]
+									
+			if len(gaps) > 0:
+				for i in range(len(gaps)):
+					junc_left_side = start + matches[i] + 1
+					junc_right_side = start + matches[i] + gaps[i] 
+					juncid = chr + ":" + str(junc_left_side) + "_" + str(junc_right_side) + ":" + strand
 					if (strand == '+'):
 						donid = chr + ":" + str(junc_left_side)
 						accid = chr + ":" + str(junc_right_side)
