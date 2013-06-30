@@ -61,12 +61,11 @@ def prep_ref(gtffile,fastafile,output_dir):
 	except:
 		print "Error:  Can't call 'gtf_to_sam.'"  
 		print "Please check that Cufflinks is installed and in your path."
-		quit()
-
-	try:
+		quit()		
 	'''
 	Check to see that fastafile is already indexed before trying to index it
 	'''
+	try:
 		with open(fastafile + '.fai'): pass
 	except IOError:
 		try:
