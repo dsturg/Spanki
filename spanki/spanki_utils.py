@@ -67,7 +67,7 @@ def prep_ref(gtffile,fastafile,output_dir):
 	'''
 	Check to see that fastafile is already indexed before trying to index it
 	'''
-		with open(fastafile): pass
+		with open(fastafile + '.fai'): pass
 	except IOError:
 		try:
 			subprocess.call(["samtools", "faidx", fastafile])
