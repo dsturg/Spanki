@@ -64,11 +64,17 @@ def prep_ref(gtffile,fastafile,output_dir):
 		quit()
 
 	try:
-		subprocess.call(["samtools", "faidx", fastafile])
-	except:
-		print "Error:  Can't call samtools"
-		print "Please check that samtools is installed"
-		quit()
+	'''
+	Check to see that fastafile is already indexed before trying to index it
+	'''
+		with open(fastafile): pass
+	except IOError:
+		try:
+			subprocess.call(["samtools", "faidx", fastafile])
+		except:
+			print "Error:  Can't call samtools"
+			print "Please check that samtools is installed"
+			quit()
 
 	fastidx = fastafile + ".fai"
 	print >> sys.stderr, "[%s] Convert SAM reference to BAM", timestamp()
