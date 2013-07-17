@@ -177,8 +177,8 @@ class Junctionid:
 		chr = juncid.split(':')[0]
 		coords = juncid.split(':')[1]
 		strand = juncid.split(':')[2]
-		start = int(coords.split('_')[0])
-		#start = int(coords.split('_')[0]) - 1
+		#start = int(coords.split('_')[0])
+		start = int(coords.split('_')[0]) - 1
 		end = int(coords.split('_')[1])
 		self.chr = chr
 		self.start = start
@@ -187,13 +187,13 @@ class Junctionid:
 		self.intronsize = end - start
 		#self.accid = str(coords.split('_')[0])
 		if self.strand == "+":
-			self.donid = chr + ":" + str(start)
+			self.donid = chr + ":" + str(start + 1)
 			self.donor = start
 			self.accid = chr + ":" + str(end)
 			self.donor = start
 			self.acceptor = end
 		elif self.strand == "-":
-			self.accid = chr + ":" + str(start)
+			self.accid = chr + ":" + str(start + 1)
 			self.donid = chr + ":" + str(end)
 			self.donor = end
 			self.acceptor = start
@@ -920,8 +920,41 @@ def intron_sequence(myjuncs,f,offset):
 		INTSEQ[juncid]['intron5'] = fiveprimeIntron
 		INTSEQ[juncid]['intron3'] = threeprimeIntron
 	return INTSEQ
+
+
+def maxent_sequence(myjuncs,f):
+ 	"""
+ 	Returns the intron sequence and flanks for each join
+ 	Custom output for running MAXENTSCAN (Yeo and Burge)
+ 	"""
+ 	MAXENTSEQ = collections.defaultdict(lambda : collections.defaultdict(dict))
+	for juncid in myjuncs:
+		j1 = Junctionid(juncid)
+		#j1.display()
+		if j1.strand == '+':
+			fiveprimeflank = Seq(f[j1.chr][j1.start-3:j1.start], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+3], IUPAC.unambiguous_dna)
+			fiveprimeIntron = Seq(f[j1.chr][j1.start:j1.start + 6], IUPAC.unambiguous_dna)
+			threeprimeIntron = Seq(f[j1.chr][j1.end-20:j1.end], IUPAC.unambiguous_dna)
+			maxent5seq = fiveprimeflank + fiveprimeIntron
+			maxent3seq = threeprimeIntron + threeprimeflank
+		else:
+			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+3], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.start-3:j1.start], IUPAC.unambiguous_dna)
+			fiveprimeflank = fiveprimeflank.reverse_complement()
+			threeprimeflank = threeprimeflank.reverse_complement()
+			fiveprimeIntron = Seq(f[j1.chr][j1.end-20:j1.end], IUPAC.unambiguous_dna)
+			threeprimeIntron = Seq(f[j1.chr][j1.start:j1.start + 6], IUPAC.unambiguous_dna)
+			fiveprimeIntron = fiveprimeIntron.reverse_complement()
+			threeprimeIntron = threeprimeIntron.reverse_complement()
+			maxent3seq = fiveprimeflank + fiveprimeIntron
+			maxent5seq = threeprimeIntron + threeprimeflank
+		MAXENTSEQ[juncid]['5ss'] = maxent5seq
+		MAXENTSEQ[juncid]['3ss'] = maxent3seq
+	return MAXENTSEQ
+
 	
-def anchor_hamming(myjuncs,f):
+def anchor_hamming(myjuncs,f,repeat_size):
  	"""
  	Gets the hamming distances of 
  	interior intron sequence and 
@@ -931,21 +964,22 @@ def anchor_hamming(myjuncs,f):
 	for juncid in myjuncs:
 		j1 = Junctionid(juncid)
 		if j1.strand == '+':
-			fiveprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
-			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
-			donormotif = Seq(f[j1.chr][j1.start:j1.start+10], IUPAC.unambiguous_dna)
-			acceptormotif = Seq(f[j1.chr][j1.end-10:j1.end], IUPAC.unambiguous_dna)
+			fiveprimeflank = Seq(f[j1.chr][j1.start-repeat_size:j1.start], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.end:j1.end +repeat_size], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.start:j1.start + repeat_size], IUPAC.unambiguous_dna)
+			acceptormotif = Seq(f[j1.chr][j1.end - repeat_size:j1.end], IUPAC.unambiguous_dna)
 		else:
-			acceptormotif = Seq(f[j1.chr][j1.start:j1.start+10], IUPAC.unambiguous_dna)
-			donormotif = Seq(f[j1.chr][j1.end-10:j1.end], IUPAC.unambiguous_dna)
-			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end+10], IUPAC.unambiguous_dna)
-			threeprimeflank = Seq(f[j1.chr][j1.start-10:j1.start], IUPAC.unambiguous_dna)
+			acceptormotif = Seq(f[j1.chr][j1.start:j1.start + repeat_size], IUPAC.unambiguous_dna)
+			donormotif = Seq(f[j1.chr][j1.end-repeat_size:j1.end], IUPAC.unambiguous_dna)
+			fiveprimeflank = Seq(f[j1.chr][j1.end:j1.end + repeat_size], IUPAC.unambiguous_dna)
+			threeprimeflank = Seq(f[j1.chr][j1.start - repeat_size:j1.start], IUPAC.unambiguous_dna)
 			acceptormotif = acceptormotif.reverse_complement()
 			donormotif = donormotif.reverse_complement()
 			fiveprimeflank = fiveprimeflank.reverse_complement()
 			threeprimeflank = threeprimeflank.reverse_complement()
 		ANCHAM[juncid]['hamming5'] = hamming_distance(fiveprimeflank,acceptormotif)
-		ANCHAM[juncid]['hamming3'] = hamming_distance(threeprimeflank,acceptormotif)
+		#ANCHAM[juncid]['hamming3'] = hamming_distance(threeprimeflank,acceptormotif)
+		ANCHAM[juncid]['hamming3'] = hamming_distance(threeprimeflank,donormotif)
 	return ANCHAM
 	
 def getGeneAnnotationCodes(samfile,lookup):
@@ -1118,6 +1152,7 @@ def parse_options(desc):
 		"Must have same chromosomes as BAM and GTF")
 	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
 	parser.add_argument('-s', type=int, help='Flanking intron sequence (number of bases)', action="store", dest="s", default=20)
+	parser.add_argument('-r', type=int, help='Size to examine for repeats (number of bases)', action="store", dest="r", default=10)
 	args = parser.parse_args()
 	# See here for argparse instructions:
 	# http://docs.python.org/dev/library/argparse.html
@@ -1154,6 +1189,7 @@ gtffile = args.g
 #method = args.m
 fastafile = args.f
 flankseq = args.s
+repeat_size = args.r
 #filter = args.filter
 
 # Checking that input files exist
@@ -1204,6 +1240,13 @@ juncs_brief_out_name = output_dir + "/juncs.brief"
 juncs_brief_out = open(juncs_brief_out_name, "w")
 genes_out_name = output_dir + "/genes.txt"
 genes_out = open(genes_out_name, "w")
+
+# For maxentscan files
+maxent5_seq_name = output_dir + "/maxent5.seq"
+maxent5_seq = open(maxent5_seq_name, "w")
+maxent3_seq_name = output_dir + "/maxent3.seq"
+maxent3_seq = open(maxent3_seq_name, "w")
+
 
 don_out_name = output_dir + "/donors.txt"
 don_out = open(don_out_name, "w")
@@ -1662,6 +1705,11 @@ def main():
  	INTSEQ = intron_sequence(myjuncs,f,offset)
 	print >> sys.stderr, "[%s] Extracted intron sequence" % (spanki_utils.timestamp())
 
+ 	MAXENTSEQ = maxent_sequence(myjuncs,f)
+	print >> sys.stderr, "[%s] Extracted intron sequence for maxentscan files" % (spanki_utils.timestamp())
+
+
+
 	################################
 	################################
 	#  Analysis 4:  Hamming
@@ -1670,7 +1718,7 @@ def main():
 	################################
 	################################
 	print >> sys.stderr, "[%s] Getting intron / anchor similarity" % (spanki_utils.timestamp())
-	ANCHAM = anchor_hamming(myjuncs,f)
+	ANCHAM = anchor_hamming(myjuncs,f,repeat_size)
 
 	################################
 	################################
@@ -1707,10 +1755,15 @@ def main():
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	if gtffile:
-		fieldorder = ['annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5','donor_outdegree','acceptor_indegree']
+		fieldorder = ['chr','annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','mod3','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5','donor_outdegree','acceptor_indegree','donor_maxent','acceptor_maxent']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
+			'''
+			Get modulo 3, to see if multiple of 3
+			'''
+			RESULTS[juncid]['chr'] = j1.chr
+			RESULTS[juncid]['mod3'] = j1.intronsize % 3
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
 			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
 			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
@@ -1730,6 +1783,8 @@ def main():
 			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
 			RESULTS[juncid]['donor_outdegree'] = don_outdegree[j1.donid]
 			RESULTS[juncid]['acceptor_indegree'] = acc_indegree[j1.accid]
+			RESULTS[juncid]['donor_maxent'] = MAXENTSEQ[juncid]['5ss']
+			RESULTS[juncid]['acceptor_maxent'] = MAXENTSEQ[juncid]['3ss']
 	else:
 		fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
 		for juncid in myjuncs:
@@ -1793,6 +1848,21 @@ def main():
 	print_dict_ordered(INTSEQ,juncs_seq,fieldorder)		
 	#printDict(RESULTS,juncs_all_out)
 
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	# MAXENTSCAN files
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#fieldorder = ['5ss']
+	#print_dict_ordered(MAXENTSEQ,maxent5_seq,fieldorder)		
+	#fieldorder = ['3ss']
+	#print_dict_ordered(MAXENTSEQ,maxent3_seq,fieldorder)		
+
+	mykeys = MAXENTSEQ.keys()
+	mykeys.sort()
+	for x in mykeys:
+		print >> maxent5_seq, '>' + x
+		print >> maxent5_seq, MAXENTSEQ[x]['5ss']
+		print >> maxent3_seq, '>' + x
+		print >> maxent3_seq, MAXENTSEQ[x]['3ss']
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Printing donors and acceptors
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
