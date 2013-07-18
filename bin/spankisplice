@@ -715,8 +715,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parseions(desc):
-	#parser = argparse.ArgumentParser(description=desc)
-	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	#parser.add_argument('-r', help='reference', action="store", dest="r")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
 	parser.add_argument('-a', action="store", dest="a",

@@ -1057,7 +1057,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parse_options(desc):
-	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	#parser.add_argument('-i', help='bam file name', action="store", dest="i")
 	parser.add_argument('-o', help='Output directory [default: sims_out]', action="store", dest="o", default="./sims_out/")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")

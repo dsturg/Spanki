@@ -164,7 +164,7 @@ class Junctionid:
 		self.accid = str(coords.split('_')[0])
 		self.donid = chr + ":" + str(end)
 
-def parse_aligns_detailed(samfile):
+def parse_aligns_detailed(samfile,overhang):
 	"""
 	Takes a sam file as input
 	Summarizes coverage, entropy, etc
@@ -222,7 +222,7 @@ def parse_aligns_detailed(samfile):
 					UNFILT_JTAB[juncid] += 1; # Total junction spanning reads
 
 
-				if min_anchor >= 8:
+				if min_anchor >= overhang:
 				
 					JTAB[juncid] += 1; # Total junction spanning reads
 	
@@ -403,9 +403,9 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 	return DATRANS, NEIGHBORCOV, joinsbyedge
 
 	
-def intron_readthrough(myjuncs,samfile):
+def intron_readthrough(myjuncs,samfile,overhang):
 	IRT = collections.defaultdict(lambda : collections.defaultdict(dict))
-	overhang = 8
+	#overhang = 8
 	'''
 	Get read length from first aligment
 	'''
@@ -919,7 +919,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parse_options(desc):
-	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('-i', help='BAM file name', action="store", dest="i")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
 	parser.add_argument('-m', action="store", dest="m", default="all",
@@ -936,6 +937,7 @@ def parse_options(desc):
 		"F - Report all junctions (default)")
 	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
 	parser.add_argument('-r', type=int, help='Size to examine for repeats (number of bases)', action="store", dest="r", default=10)
+	parser.add_argument('-ohang', type=int, help='Overhang applied to junction filtering and intron retention analysis (number of bases)', action="store", dest="ohang", default=8)
 	args = parser.parse_args()
 	# See here for argparse instructions:
 	# http://docs.python.org/dev/library/argparse.html
@@ -971,6 +973,7 @@ method = args.m
 fastafile = args.f
 filter = args.filter
 repeat_size = args.r
+overhang = args.ohang
 
 # Checking that input files exist
 if not os.path.exists(bamfile):
@@ -1095,7 +1098,7 @@ def main():
 		print >> sys.stderr, "[%s] Warning: Chromosomes in fasta ref that have no alignments in bam:" % (spanki_utils.timestamp()) 
 		print >> sys.stderr, ','.join(fasta_not_bam)
 		
-	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
+	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh,overhang)
 	
 
 	bamfh.close()
@@ -1269,7 +1272,7 @@ def main():
 		#for alignedread in samfile:
 		# Need some kind of iterator to getread length from first alignment in sam
 		print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanki_utils.timestamp())
-		IRT = intron_readthrough(myjuncs,bamfh)
+		IRT = intron_readthrough(myjuncs,bamfh,overhang)
 		bamfh.close()
 		print >> sys.stderr, "[%s] Done getting IRT" % (spanki_utils.timestamp())
 

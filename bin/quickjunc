@@ -215,8 +215,9 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parse_options(desc):
+	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	#parser = argparse.ArgumentParser(description=desc)
-	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument('-i', help='BAM file name', action="store", dest="i")
 	parser.add_argument('-a', help='Anchor size, default=8', action="store", type=int, dest="a", default=8)
 	args = parser.parse_args()
