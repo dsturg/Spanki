@@ -281,7 +281,8 @@ def main():
 		totalcov2 = int(dncov2) + donor_irt2 + int(cov2)
 		myresults[x]['totalcov1'] = totalcov1
 		myresults[x]['totalcov2'] = totalcov2
-		myresults[x]['avg_totalcov'] = ((dncov1 + donor_irt1 + cov1) + (dncov1 + donor_irt1 + cov1)) / 2
+		myresults[x]['avg_totalcov'] = (totalcov1 + totalcov2) / 2
+		#myresults[x]['avg_totalcov'] = ((dncov1 + donor_irt1 + cov1) + (dncov2 + donor_irt2 + cov2)) / 2
 		
 		try:
 			psi_donor1 = (donor_irt1 + dncov1) / (donor_irt1 + dncov1 + cov1)

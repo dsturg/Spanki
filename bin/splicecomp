@@ -175,7 +175,7 @@ def main():
 		except KeyError:
 			fpkm = 0
 		try: 
-			myresults[event]['fpkm_proportion2'] = tab1[event]['fpkm_proportion']
+			myresults[event]['fpkm_proportion2'] = tab2[event]['fpkm_proportion']
 		except KeyError:
 			fpkm = 0
 	
