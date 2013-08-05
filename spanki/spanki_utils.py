@@ -61,14 +61,19 @@ def prep_ref(gtffile,fastafile,output_dir):
 	except:
 		print "Error:  Can't call 'gtf_to_sam.'"  
 		print "Please check that Cufflinks is installed and in your path."
-		quit()
-
+		quit()		
+	'''
+	Check to see that fastafile is already indexed before trying to index it
+	'''
 	try:
-		subprocess.call(["samtools", "faidx", fastafile])
-	except:
-		print "Error:  Can't call samtools"
-		print "Please check that samtools is installed"
-		quit()
+		with open(fastafile + '.fai'): pass
+	except IOError:
+		try:
+			subprocess.call(["samtools", "faidx", fastafile])
+		except:
+			print "Error:  Can't call samtools"
+			print "Please check that samtools is installed"
+			quit()
 
 	fastidx = fastafile + ".fai"
 	print >> sys.stderr, "[%s] Convert SAM reference to BAM", timestamp()
