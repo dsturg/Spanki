@@ -1057,13 +1057,14 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parse_options(desc):
-	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter,argument_default=argparse.SUPPRESS)
 	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	#parser.add_argument('-i', help='bam file name', action="store", dest="i")
-	parser.add_argument('-o', help='Output directory [default: sims_out]', action="store", dest="o", default="./sims_out/")
+	parser.add_argument('-o', help='Output directory', action="store", dest="o", default="./sims_out/")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
 	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
-	parser.add_argument('-cov', help='Coverage to sim [Deafult: if nothing specified, coverage=1 for all transcripts]', action="store", dest="c", type=int)
+	parser.add_argument('-cov', help='Coverage to sim [Default: if nothing specified, coverage=1 for all transcripts]', action="store", dest="c", type=int)
 	parser.add_argument('-rpk', help='RPK to sim', action="store", dest="r", type=int)
 	parser.add_argument('-t', help='File of transcripts to sim', action="store", dest="t", default="")
 	parser.add_argument('-bp', help='Read length [default: 75]', action="store", type=int, dest="bp", default=75)
@@ -1107,8 +1108,16 @@ args = parse_options(desc)
 outfile = args.o
 gtffile = args.g
 fastafile = args.f
-mycov = args.c
-myrpk = args.r
+
+if hasattr(args, 'c'): 
+	mycov = args.c
+else: 
+	mycov = None
+if hasattr(args, 'r'): 
+	myrpk = args.r
+else:
+	myrpk = None
+
 txinput = args.t
 mybp = args.bp
 myends = args.ends
@@ -1370,10 +1379,10 @@ def main():
 		startweights_spliced = getStartweights(str(myseq_spliced),mers,seqweights)
 		startweights_unspliced = getStartweights(str(myseq_unspliced),mers,seqweights)
 		
-		print "startweights_spliced:\n"
-		print startweights_spliced
-		print "startweights_unspliced:\n"
-		print startweights_unspliced
+		##print "startweights_spliced:\n"
+		##print startweights_spliced
+		##print "startweights_unspliced:\n"
+		##print startweights_unspliced
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		# Set up indexes to keep track of position, strand
 		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
@@ -1384,22 +1393,22 @@ def main():
 		Note 'pre' is meant to be like the pre-mRNA, the unspliced transcript
 		'''
 		pre2genome = range(TX[mytx]['start'],TX[mytx]['start'] + prelength)
-		print "pre2genome"
-		print pre2genome
+		##print "pre2genome"
+		##print pre2genome
 		'''
 		precigar is a string that helps to construct the cigar string later 
 		based on where the read is extracted from
 		'''
 		precigar = explodingCigar(TX[mytx]['chain'])
-		print "precigar\n"
-		print precigar
+		##print "precigar\n"
+		##print precigar
 
 		# Getting an index of GENOMIC coordinates
 		#coordidx, splicedcoordidx, indexstring = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
 		#pre2genome, spl2pre = genomeCoordString(TX[mytx]['chain'],TX[mytx]['start'])
 		spl2pre = makePreRNAindex(TX[mytx]['chain'],TX[mytx]['start'])
-		print "spl2pre\n"
-		print spl2pre
+		##print "spl2pre\n"
+		##print spl2pre
 
 
 		strandidx = []
