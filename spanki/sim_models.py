@@ -36,6 +36,7 @@ def getMMNUMmodel(model,mybp,customdir):
 	if (model == "random"):
 		mmprob = [30,20,15,10,5,5,5,5,2.5,2.5]
 		#mmprob.extend([.25] * (mybp - 10))
+		
 	elif (model == "NIST"):
 		'''
 		Load model data
@@ -99,8 +100,16 @@ def getMMPOSmodel(model,mybp,customdir):
 	mmposprob = []
 	
 	if (model == "random"):
-		mmposprob = [25,20,15,10,10,5,5,5,2,2]
-		mmposprob.extend([.75] * (mybp - 10))
+		#mmposprob = [25,20,15,10,10,5,5,5,2,2]
+		#mmposprob.extend([.75] * (mybp - 10))
+
+		# Simple weighted probability, where prob of a mismatch increases with increased length
+		# First 10 bases are weighted the same:
+		myseed = 10
+		mmprob = [myseed] * 10
+		for x in range(myseed,mybp):
+			mmprob.append(myseed + x)
+
 	elif (model == "NIST"):
 		myresource = str('data/' + model + '_mmcounts.txt')
 		data = pkgutil.get_data(__name__, myresource)

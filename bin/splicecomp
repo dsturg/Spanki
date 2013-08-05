@@ -72,8 +72,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parse_options(desc):
-	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
-	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('-a', help='table A', action="store", dest="a")
 	parser.add_argument('-b', help='table B', action="store", dest="b")
 	parser.add_argument('-o', help="Output directory, default='splicecomp_out'", action="store", dest="o", default="splicecomp_out")

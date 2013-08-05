@@ -715,8 +715,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 def parseions(desc):
-	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
+	#parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
 	#parser.add_argument('-r', help='reference', action="store", dest="r")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
 	parser.add_argument('-a', action="store", dest="a",
@@ -744,7 +744,7 @@ desc = '''
 -----------------------------------------------------------------
 spankisplice - Quantify splicing events in a sample
 
-Input junction coverage, AStalavista splicing definitions (Sammeth et. al)
+Input junction coverage, AStalavista splicing definitions (Sammeth et al.)
 Output compiled data by event.
 
 To build AStalavista event definitions, see here:
@@ -807,11 +807,12 @@ asta_counts_out_sens = open(asta_counts_out_sens_name, "w")
 
 if (verbose != "F"):
 
-	asta_counts_out_opt_name = output_dir + "/events_opt.out"
-	asta_counts_out_opt = open(asta_counts_out_opt_name, "w")
+	# These two tables are deprecated
+	#asta_counts_out_opt_name = output_dir + "/events_opt.out"
+	#asta_counts_out_opt = open(asta_counts_out_opt_name, "w")
 	
-	asta_counts_out_all_name = output_dir + "/events_all.out"
-	asta_counts_out_all = open(asta_counts_out_all_name, "w")
+	#asta_counts_out_all_name = output_dir + "/events_all.out"
+	#asta_counts_out_all = open(asta_counts_out_all_name, "w")
 	
 	asta_counts_out_prec_name = output_dir + "/events_prec.out"
 	asta_counts_out_prec = open(asta_counts_out_prec_name, "w")
@@ -1110,7 +1111,8 @@ def main():
 			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
 
 		RESULTS = eventdict
-		print_output_table_firstiskey(RESULTS,asta_counts_out_all,fieldorder)
+		# This is deprecated
+		#print_output_table_firstiskey(RESULTS,asta_counts_out_all,fieldorder)
 
 		'''
 		prec mode
@@ -1145,7 +1147,8 @@ def main():
 	
 		
 		RESULTS = eventdict
-		print_output_table_firstiskey(RESULTS,asta_counts_out_opt,fieldorder)
+		# This is deprecated
+		#print_output_table_firstiskey(RESULTS,asta_counts_out_opt,fieldorder)
 
 
 	'''

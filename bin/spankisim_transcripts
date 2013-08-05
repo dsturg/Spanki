@@ -1066,14 +1066,14 @@ def parse_options(desc):
 	parser.add_argument('-f', help='Fasta file', action="store", dest="f")
 	parser.add_argument('-cov', help='Coverage to sim [Default: if nothing specified, coverage=1 for all transcripts]', action="store", dest="c", type=int)
 	parser.add_argument('-rpk', help='RPK to sim', action="store", dest="r", type=int)
-	parser.add_argument('-t', help='File of transcripts to sim', action="store", dest="t", default="")
-	parser.add_argument('-bp', help='Read length [default: 75]', action="store", type=int, dest="bp", default=75)
+	parser.add_argument('-t', help='File of transcripts to sim', action="store", dest="t")
+	parser.add_argument('-bp', help='Read length', action="store", type=int, dest="bp", default=75)
 	parser.add_argument('-ends', help='Number of mates (1=single (default) or 2=paired ends)', action="store", type=int, dest="ends", default=1)
-	parser.add_argument('-s', help='Start selection mode [random (default)]', action="store", dest="s", default="random")
+	parser.add_argument('-s', help='Start selection mode', action="store", dest="s", default="random")
 	parser.add_argument('-m', help='Error model [random (default),NIST,dm3,flyheads, or custom]', action="store", dest="m", default="random")
-	parser.add_argument('-mdir', help='Custom error model directory [default: none]', action="store", dest="mdir", default="none")
-	parser.add_argument('-ir', help='Intron_retention [default: 0.2]', action="store", type=float, dest="ir", default=0.2)
-	parser.add_argument('-frag', help='Fragment_size [default: 200]', action="store", type=int, dest="fragsize", default=200)
+	parser.add_argument('-mdir', help='Custom error model directory', action="store", dest="mdir", default="none")
+	parser.add_argument('-ir', help='Intron_retention', action="store", type=float, dest="ir", default=0.2)
+	parser.add_argument('-frag', help='Fragment_size', action="store", type=int, dest="fragsize", default=200)
 	args = parser.parse_args()
 	if len(sys.argv)==1:
 		parser.print_help()
@@ -1118,7 +1118,10 @@ if hasattr(args, 'r'):
 else:
 	myrpk = None
 
-txinput = args.t
+if hasattr(args, 't'): 
+	txinput = args.t
+else:
+	txinput = None
 mybp = args.bp
 myends = args.ends
 startmodel = args.s
@@ -1320,6 +1323,7 @@ def main():
 	MMNUM
 	"""
 	mmprob = models.getMMNUMmodel(model,mybp,customdir)
+
 	"""
 	Positions of mismatches
 	MMPOS
