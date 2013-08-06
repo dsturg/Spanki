@@ -46,7 +46,7 @@ junccomp -a female_repsmerged.juncs -b male_repsmerged.juncs -o F_vs_M_junccomp
 # Other functions      #
 ########################
 
-# Annotating a junction set (From a junction table)
+echo "[***************] Annotating a junction set (From a junction table) "
 annotate_junctions -o female_rep1_annotated_junctab -jtab female_rep1/juncs.all -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf
 # Annotating a junction set (From a junction list)
 annotate_junctions -o female_rep1_annotated_junclist -jlist female_rep1/juncs.list -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf

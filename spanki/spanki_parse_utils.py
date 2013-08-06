@@ -9,6 +9,51 @@ import collections
 import math
 
 
+class Junctionid:
+	"""
+	Base class for a junction, from juncid
+	Expects junction id
+	"""
+	def __init__(self, juncid):
+		chr = juncid.split(':')[0]
+		coords = juncid.split(':')[1]
+		strand = juncid.split(':')[2]
+		#start = int(coords.split('_')[0])
+		start = int(coords.split('_')[0]) - 1
+		end = int(coords.split('_')[1])
+		self.chr = chr
+		self.start = start
+		self.end = end
+		self.strand = strand.strip()
+		self.intronsize = end - start
+		#self.accid = str(coords.split('_')[0])
+		if self.strand == "+":
+			self.donid = chr + ":" + str(start + 1)
+			self.donor = start
+			self.accid = chr + ":" + str(end)
+			self.donor = start
+			self.acceptor = end
+		elif self.strand == "-":
+			self.accid = chr + ":" + str(start + 1)
+			self.donid = chr + ":" + str(end)
+			self.donor = end
+			self.acceptor = start
+		else:
+			print "strand character is", self.strand
+			quit("Don't recognize strand")
+	def display(self):
+		print self.intronsize
+		print self.chr
+		print self.donid
+		#print self.dastring
+		#print "start", self.start
+		#print "L read anchor   ", self.left_read_anchor
+		#print "L genome aligned", self.left_genome_aligned
+		#print "R read anchor   ", self.right_read_anchor
+		#print "R genome aligned", self.right_genome_aligned
+		#print "READ            ", self.readseq
+
+
 def parseRefAsBam(samfile):
 	EDG = {}
 	JUN = {}
