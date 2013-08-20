@@ -1465,13 +1465,13 @@ def main():
 		 		abundance_metric = "RPK"
 		 		abundance_value =  int(txtab[i]['rpk'])
 		 		numreads = int(abundance_value * len(myseq_spliced)/1000)
-		 	elif 'cov' in txtab[i].keys():
+		 	elif 'cov' in txtab[mytx].keys():
 		 		abundance_metric = "Coverage"
  				abundance_value = int(txtab[mytx]['cov'])
 		 		covtimeslength = abundance_value * len(myseq_spliced)
 				numreads = int(covtimeslength / mybp)
 			else:
-		 		print "Don't recognize txtab headings", txtab[i].keys()
+		 		print "Don't recognize txtab headings", txtab[mytx].keys()
 		 		quit("This file should specify coverage 'cov' or reads per kilobase 'rpk'")
 		else:
 			quit("Can't figure out how many reads to generate")

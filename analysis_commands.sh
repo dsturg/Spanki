@@ -3,6 +3,12 @@
 # Uses testdata availble from:
 # http://www.cbcb.umd.edu/software/spanki/testdata.tar.gz
 
+# Instructions:
+# Make a working directory, eg "spankitest"
+# go the the spankitest directory, and extract the testdata there
+# copy the "analysis_commands.sh" file from the Spanki directory to here
+# Run the commands:  ./analysis_commands.sh  or manually copy and paste lines of code
+
 echo "[***************] Starting female spankijunc runs"
 spankijunc -m all -o female_rep1 -i testdata/female_r1.bam -g testdata/annotation/genemodels.gtf -f testdata/fasta/myref.fa
 spankijunc -m all -o female_rep2 -i testdata/female_r2.bam -g testdata/annotation/genemodels.gtf -f testdata/fasta/myref.fa
@@ -52,7 +58,6 @@ annotate_junctions -o female_rep1_annotated_junctab -jtab female_rep1/juncs.all 
 annotate_junctions -o female_rep1_annotated_junclist -jlist female_rep1/juncs.list -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf
 # Annotating annotated junctions
 annotate_junctions -o annotated_reference_juncs -f testdata/fasta/myref.fa -g testdata/annotation/genemodels.gtf
-
 
 
 
