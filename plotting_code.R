@@ -69,6 +69,7 @@ mosaic(mymat, gp = gpar(fill = fill_colors, col = 0))
 
 # Set the directory to 
 setwd("~/Desktop/spankitest/")
+library(vcd)
 
 splicecomp <- read.delim(file="F_vs_M_splicecomp/event_compare.out",stringsAsFactors=F)
 
@@ -78,7 +79,7 @@ mymat <- matrix(c(splicecomp$inc1[i],splicecomp$exc1[i],splicecomp$inc2[i],splic
 
 # Make a mosaic plot
 fill_colors <- matrix(c("blue", "blue", "red", "red"), ncol = 2)
-mosaic(mymat, gp = gpar(fill = fill_colors, col = 0)
+mosaic(mymat, gp = gpar(fill = fill_colors, col = 0))
 
 
 
