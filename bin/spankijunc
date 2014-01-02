@@ -176,7 +176,9 @@ def parse_aligns_detailed(samfile,overhang):
 	NEWDTAB = collections.defaultdict(lambda : collections.defaultdict(dict))
 	MMES = collections.defaultdict(lambda : collections.defaultdict(dict))
 	zero_anchor_warnings = 0
+	totalreads = 0;
 	for alignedread in samfile:
+		totalreads += 1
 		if (len(alignedread.cigar) > 1):
 			# Note that alignedread.is_reverse does not work right to get strand
 			#strand = alignedread.tags[1][1] 
@@ -285,7 +287,7 @@ def parse_aligns_detailed(samfile,overhang):
 	if zero_anchor_warnings > 0:
 		print "[ WARNING ] ", zero_anchor_warnings, "alignments with zero anchor coverage excluded"
 	
-	return JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES
+	return JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES,totalreads
 
 def crossTabulate(x, fh):
 	D = collections.defaultdict(int)
@@ -1081,6 +1083,8 @@ def main():
 	# Load bamfiles
 	print >> sys.stderr, "[%s] Reading alignments from %s" % (spanki_utils.timestamp(), bamfile)
 
+
+
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Parse the read alignments
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1098,8 +1102,10 @@ def main():
 		print >> sys.stderr, "[%s] Warning: Chromosomes in fasta ref that have no alignments in bam:" % (spanki_utils.timestamp()) 
 		print >> sys.stderr, ','.join(fasta_not_bam)
 		
-	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh,overhang)
+	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES,totalreads = parse_aligns_detailed(bamfh,overhang)
 	
+	#print "totalreads is ", totalreads
+	#quit();
 
 	bamfh.close()
 	myjuncs = JTAB.keys()
@@ -1319,10 +1325,11 @@ def main():
 
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 	if (method == "eval"):
-		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc']
+		fieldorder = ['unfilt_cov', 'cov', 'normcov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
+			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
@@ -1339,10 +1346,11 @@ def main():
 			RESULTS[juncid]['MAXmmes'] = MMES[juncid]['MAXmmes']
 			RESULTS[juncid]['MAXminanc'] = MMES[juncid]['MAXminanc']
 	elif (method == "quant"):
-		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','lirt','rirt','irt','datrans','dinucleotide','intron_size','dncov','ancov']
+		fieldorder = ['unfilt_cov', 'cov', 'normcov', 'annostatus','geneassignL','geneassignR','geneassign','lirt','rirt','irt','datrans','dinucleotide','intron_size','dncov','ancov']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
+			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
@@ -1357,10 +1365,11 @@ def main():
 			RESULTS[juncid]['dncov'] = NEIGHBORCOV[juncid]['dncov']
 			RESULTS[juncid]['ancov'] = NEIGHBORCOV[juncid]['ancov']
 	elif (method == "all"):
-		fieldorder = ['unfilt_cov', 'cov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
+		fieldorder = ['unfilt_cov', 'cov', 'normcov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
+			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
