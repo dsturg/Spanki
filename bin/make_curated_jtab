@@ -502,6 +502,11 @@ def main():
 	#counter = 0
 	for juncid in keys1:
 		j1 = Junctionid(juncid)
+		print "I am loooking thru juncs\n"
+		print j1
+		print juncid
+		print jdict[juncid]
+		quit()
 		#counter += 1
 		#print "\t", counter
 		#donid = j1.donid
