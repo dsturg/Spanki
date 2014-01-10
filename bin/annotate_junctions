@@ -1885,10 +1885,11 @@ def main():
  	for geneid in GENES.keys():
  		GENES[geneid]['startNum'] = len(GENES[geneid]['start'])
  		GENES[geneid]['intronNum'] = len(GENES[geneid]['intron'])
+ 		GENES[geneid]['txNum'] = len(GENES[geneid]['tx'])
  	
 	if gtffile:
-		fieldorder = ['startNum','intronNum','gmcode', 'regcode']
-		print_dict_ordered(GENES,genes_out,fieldorder)
+		fieldorder = ['txNum','intronNum','startNum','gmcode', 'regcode']
+		print_dict_ordered_generic(GENES,genes_out,fieldorder)
 
 	#for geneid in GENES.keys():
 		#print GENES[geneid]
