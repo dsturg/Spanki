@@ -19,11 +19,11 @@ spankijunc -m all -o male_rep2 -i testdata/male_r2.bam -g testdata/annotation/ge
 # Note:  If you want all your tables to be symmetrical (have the same number of rows and the same junctions),
 # then create a list of junctions (either curated, or a merge of all junctions detected), and run make_curated_jtab
 # on each sample. Example:
-
+	
 echo "[***************] Making a table of all junctions detected in any sample"
 cat female_rep1/juncs.all female_rep2/juncs.all male_rep1/juncs.all male_rep2/juncs.all > all_tables.txt
-head -1 female_rep1/juncs.all | awk '{print $1"\t"$4"\t"$7"\t"$8"\t"$9"\t"$14"\t"$15}' > all_juncs.txt 
-awk '{if ($1 != "juncid") {print $1"\t"$4"\t"$7"\t"$8"\t"$9"\t"$14"\t"$15}}' all_tables.txt | sort -u >> all_juncs.txt
+head -1 female_rep1/juncs.all | awk '{print $1"\t"$15"\t"$8"\t"$5"\t"$16"\t"$9"\t"$10"\t"$3}' > all_juncs.txt 
+awk '{if ($1 != "juncid") {print $1"\t"$15"\t"$8"\t"$5"\t"$16"\t"$9"\t"$10"\t"$3}}' all_tables.txt | sort -u >> all_juncs.txt
 
 echo "[***************] Getting additional data from the female runs"
 make_curated_jtab -o female_rep1_curated -i  testdata/female_r1.bam -jlist all_juncs.txt -jtab female_rep1/juncs.all
