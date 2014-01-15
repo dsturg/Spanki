@@ -458,6 +458,10 @@ juncs_out = open(juncs_out_name, "w")
 
 def main():
 	
+	print "#####################################################"
+	print "########       make_curated_jtab             ########"
+	print "#####################################################"
+ 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	#~~~~~~~~~~~~~~~~~~~
 	# Load junction from first pass
 	#~~~~~~~~~~~~~~~~~~~
@@ -501,6 +505,12 @@ def main():
 
 	#counter = 0
 	for juncid in keys1:
+		"""
+		Read in data from the first pass jtab
+		Use data to make a new covbyedge hash
+		This function will not add new coverage to this hash, but an undetected junction
+		will get a value for doncov for example
+		"""
 		j1 = Junctionid(juncid)
 		#counter += 1
 		#print "\t", counter
@@ -523,22 +533,32 @@ def main():
 	# Need some kind of iterator to getread length from first alignment in sam
 	#print >> sys.stderr, "Getting details for", len(myjuncs), "that were not detected in this sample" 
 	print >> sys.stderr, "[%s] Getting details for %s junctions that were not detected in this sample"  % (spanki_utils.timestamp(),len(myjuncs))
-	print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanki_utils.timestamp())
+	print >> sys.stderr, "[%s] Getting intron read-though (IRT), may take awhile" % (spanki_utils.timestamp())	
 	IRT = intron_readthrough(myjuncs,bamfh)
+	"""
+	Get IRT for all juncs:
+	Redundantly calculates IRT for data in first pass jtab
+	"""
 	bamfh.close()
 	print >> sys.stderr, "[%s] Done getting IRT" % (spanki_utils.timestamp())
 
+	# For consistency, report these descriptive fields first in this order in every junction table:
+	# 'dinucleotide','intron_size', 'annostatus','gmcode','regcode','geneassign','geneassignL','geneassignR'
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# Now compile the results
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# First show how you can get in hte myjuncs list
 	print >> sys.stderr, "Printing results table"
-	print >> juncs_out, "juncid\tdinucleotide\tgeneassign\tannostatus\tintron_size\tgmcode\tregcode\tcov\tlirt\trirt\tirt\tdncov\tancov"
+	print >> juncs_out, "juncid\tdinucleotide\tintron_size\tannostatus\tgmcode\tregcode\tgeneassign\tcov\tlirt\trirt\tirt\tdncov\tancov"
 	
 	for juncid in sorted(keys2):
 		try:
-			results = [juncid, jdict[juncid]['dinucleotide'], jdict[juncid]['geneassign'], jdict[juncid]['annostatus'], jdict[juncid]['intron_size'], jdict[juncid]['gmcode'], jdict[juncid]['regcode'], jdict[juncid]['cov'], jdict[juncid]['lirt'], jdict[juncid]['rirt'], jdict[juncid]['irt'], jdict[juncid]['dncov'], jdict[juncid]['ancov']]
+			"""
+			Try getting the data from the first pass jtab
+			If its not there, look in the new table
+			"""
+			results = [juncid, jdict[juncid]['dinucleotide'], jdict[juncid]['intron_size'], jdict[juncid]['annostatus'], jdict[juncid]['gmcode'], jdict[juncid]['regcode'], jdict[juncid]['geneassign'], jdict[juncid]['cov'], jdict[juncid]['lirt'], jdict[juncid]['rirt'], jdict[juncid]['irt'], jdict[juncid]['dncov'], jdict[juncid]['ancov']]
 			print >> juncs_out, ('\t'.join(map(str,results)))
 		except KeyError:
 			#myjuncs.append(juncid)	
@@ -549,7 +569,7 @@ def main():
 			else: dncov = 0
 			if covbyedge[accid]: ancov = covbyedge[accid]
 			else: ancov = 0
-			results = [juncid, reflist[juncid]['dinucleotide'], reflist[juncid]['geneassign'],  reflist[juncid]['annostatus'],  reflist[juncid]['intron_size'],  reflist[juncid]['gmcode'],  reflist[juncid]['regcode'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['irt'], dncov, ancov]
+			results = [juncid, reflist[juncid]['dinucleotide'],  reflist[juncid]['intron_size'],  reflist[juncid]['annostatus'],  reflist[juncid]['gmcode'],  reflist[juncid]['regcode'], reflist[juncid]['geneassign'], 0, IRT[juncid]['lirt'], IRT[juncid]['rirt'], IRT[juncid]['irt'], dncov, ancov]
 			#print(results, sep='\t')
 			print >> juncs_out, ('\t'.join(map(str,results)))
 

@@ -1019,6 +1019,9 @@ log_out = open(log_out_name, "w")
 	
 def main():
 	
+	print "#####################################################"
+	print "########       Running Spankijunc            ########"
+	print "#####################################################"
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Checking that required files are present
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1323,21 +1326,28 @@ def main():
 
 	myjuncs.sort()
 
+
+	# For consistency, report these descriptive fields first in this order in every junction table:
+	# 'dinucleotide','intron_size', 'annostatus','gmcode','regcode','geneassign','geneassignL','geneassignR'
+
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 	if (method == "eval"):
-		fieldorder = ['unfilt_cov', 'cov', 'normcov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc']
+		"""
+		This mode skips IRT
+		"""
+		fieldorder = ['dinucleotide','intron_size', 'annostatus','gmcode','regcode','geneassign','geneassignL','geneassignR','unfilt_cov', 'cov', 'normcov','offsets','entropy','hamming3','hamming5','MAXmmes','MAXminanc']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
 			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
+			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
 			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
 			RESULTS[juncid]['geneassignR'] = GENEASSIGN[juncid]['geneassignR']
 			RESULTS[juncid]['geneassign'] = GENEASSIGN[juncid]['geneassign']
-			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
-			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
 			RESULTS[juncid]['offsets'] = ENTROPIES[juncid]['offsets']
 			RESULTS[juncid]['entropy'] = ENTROPIES[juncid]['entropy']
 			RESULTS[juncid]['hamming3'] = ANCHAM[juncid]['hamming3']
@@ -1346,12 +1356,17 @@ def main():
 			RESULTS[juncid]['MAXmmes'] = MMES[juncid]['MAXmmes']
 			RESULTS[juncid]['MAXminanc'] = MMES[juncid]['MAXminanc']
 	elif (method == "quant"):
-		fieldorder = ['unfilt_cov', 'cov', 'normcov', 'annostatus','geneassignL','geneassignR','geneassign','lirt','rirt','irt','datrans','dinucleotide','intron_size','dncov','ancov']
+		"""
+		This mode skips entropy
+		"""
+		fieldorder = ['dinucleotide','intron_size','annostatus','gmcode','regcode','geneassign','geneassignL','geneassignR','unfilt_cov', 'cov', 'normcov','lirt','rirt','irt','datrans','dncov','ancov']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
 			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
+			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
+			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
 			RESULTS[juncid]['geneassignL'] = GENEASSIGN[juncid]['geneassignL']
@@ -1365,7 +1380,7 @@ def main():
 			RESULTS[juncid]['dncov'] = NEIGHBORCOV[juncid]['dncov']
 			RESULTS[juncid]['ancov'] = NEIGHBORCOV[juncid]['ancov']
 	elif (method == "all"):
-		fieldorder = ['unfilt_cov', 'cov', 'normcov', 'annostatus','geneassignL','geneassignR','geneassign','gmcode','regcode','offsets','entropy','hamming3','hamming5','dinucleotide','intron_size','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
+		fieldorder = ['dinucleotide','intron_size','annostatus','gmcode','regcode','geneassign','geneassignL','geneassignR','unfilt_cov', 'cov', 'normcov','offsets','entropy','hamming3','hamming5','MAXmmes','MAXminanc','lirt','rirt','irt','datrans','dncov','ancov']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
@@ -1396,18 +1411,21 @@ def main():
 
 	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
 
-					
-	print >> donor_out, "donor\tcoverage\tjoins"
-	Ks = NEWDTAB.keys()
-	Ks.sort()
-	for x in Ks:
-		dcov = 0
-		for y in NEWDTAB[x].keys():
-			juncid = str(x) + "_" + str(y)
-			if ((juncid + ":+") in myjuncs) or ((juncid + ":-") in myjuncs):
-				dcov += NEWDTAB[x][y]
-		if joinsbyedge[x] > 0:
-			print >> donor_out, '\t'.join(map(str,[x,dcov,joinsbyedge[x]]))
+	if (method in ["quant","all"]):
+		"""
+		Compiles a table of donor coverage, unless run in 'eval' mode				
+		"""
+		print >> donor_out, "donor\tcoverage\tjoins"
+		Ks = NEWDTAB.keys()
+		Ks.sort()
+		for x in Ks:
+			dcov = 0
+			for y in NEWDTAB[x].keys():
+				juncid = str(x) + "_" + str(y)
+				if ((juncid + ":+") in myjuncs) or ((juncid + ":-") in myjuncs):
+					dcov += NEWDTAB[x][y]
+			if joinsbyedge[x] > 0:
+				print >> donor_out, '\t'.join(map(str,[x,dcov,joinsbyedge[x]]))
 
 	print >> log_out, "[%s] Run completed" % (spanki_utils.timestamp())
 	

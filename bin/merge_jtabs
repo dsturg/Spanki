@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-merge_jtabs_all
+merge_jtabs
 
 Combine junction coverages for multiple samples
 
@@ -67,12 +67,16 @@ def main():
 			'''
 			for juncid in JTAB:
 				combined[juncid] = JTAB[juncid]
-				combined[juncid]['numsamps'] = 1
+				if int(JTAB[juncid]['cov']) > 0:
+					combined[juncid]['numsamps'] = 1
+				else:
+					combined[juncid]['numsamps'] = 0
 		else:
 			for juncid in JTAB:
-				if combined[juncid]:
-					combined[juncid]['numsamps'] += 1
-					combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] )
+				if combined[juncid]: # If this is NOT the first time seeing this junction
+					if int(JTAB[juncid]['cov']) > 0:
+						combined[juncid]['numsamps'] += 1
+						combined[juncid]['cov'] = int(JTAB[juncid]['cov']) + int(combined[juncid]['cov'] ) # If cov is zero, no need to merge coverage		
 					try:
 						int(combined[juncid]['dncov']) and int(JTAB[juncid]['dncov'])
 						'''
@@ -94,21 +98,32 @@ def main():
 							pass
 					except ValueError:
 						pass
-				else:
+				else: # If this IS the first time seeing this junction
 					combined[juncid] = JTAB[juncid]
-					combined[juncid]['numsamps'] = 1
+					if int(JTAB[juncid]['cov']) > 0:
+						combined[juncid]['numsamps'] = 1
+					else:
+						combined[juncid]['numsamps'] = 0
+
+
+	# For consistency, report these descriptive fields first in this order in every junction table:
+	# 'dinucleotide','intron_size', 'annostatus','gmcode','regcode','geneassign','geneassignL','geneassignR'
+
 
 	if (irtinclude == "T"):
 		#print "juncid\tgeneassign\tcov\tlirt\trirt\tirt\tdncov\tancov\tnumsamps"			
-		print "juncid\tgeneassign\tannostatus\tintron_size\tgmcode\tregcode\tcov\tlirt\trirt\tirt\tdncov\tancov\tnumsamps"	
+		print "juncid\tdinucleotide\tintron_size\tannostatus\tgmcode\tregcode\tgeneassign\tcov\tlirt\trirt\tirt\tdncov\tancov\tnumsamps"	
 		for juncid in combined.keys():
-			print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['annostatus'], '\t', combined[juncid]['intron_size'], '\t', combined[juncid]['gmcode'], '\t', combined[juncid]['regcode'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['lirt'], '\t', combined[juncid]['rirt'], '\t', combined[juncid]['irt'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
+			print juncid, '\t', combined[juncid]['dinucleotide'], '\t', combined[juncid]['intron_size'], '\t', combined[juncid]['annostatus'], '\t', combined[juncid]['gmcode'], '\t', combined[juncid]['regcode'],'\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['lirt'], '\t', combined[juncid]['rirt'], '\t', combined[juncid]['irt'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
 	else:
-		print "juncid\tgeneassign\tcov\tnumsamps"			
+		print "juncid\tdinucleotide\tintron_size\tannostatus\tgmcode\tregcode\tgeneassign\tcov\tdncov\tancov\tnumsamps"	
 		for juncid in combined.keys():
-			print juncid, '\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['numsamps']
+			print juncid, '\t', combined[juncid]['dinucleotide'], '\t', combined[juncid]['intron_size'], '\t', combined[juncid]['annostatus'], '\t', combined[juncid]['gmcode'], '\t', combined[juncid]['regcode'],'\t', combined[juncid]['geneassign'], '\t', combined[juncid]['cov'], '\t', combined[juncid]['dncov'], '\t', combined[juncid]['ancov'], '\t', combined[juncid]['numsamps']
 	
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+
 

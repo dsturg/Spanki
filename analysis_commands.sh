@@ -21,9 +21,14 @@ spankijunc -m all -o male_rep2 -i testdata/male_r2.bam -g testdata/annotation/ge
 # on each sample. Example:
 	
 echo "[***************] Making a table of all junctions detected in any sample"
-cat female_rep1/juncs.all female_rep2/juncs.all male_rep1/juncs.all male_rep2/juncs.all > all_tables.txt
-head -1 female_rep1/juncs.all | awk '{print $1"\t"$15"\t"$8"\t"$5"\t"$16"\t"$9"\t"$10"\t"$3}' > all_juncs.txt 
-awk '{if ($1 != "juncid") {print $1"\t"$15"\t"$8"\t"$5"\t"$16"\t"$9"\t"$10"\t"$3}}' all_tables.txt | sort -u >> all_juncs.txt
+head -1 female_rep1/juncs.all | cut -f 1-7 > all_juncs.txt
+tail +2 -q female_rep1/juncs.all female_rep2/juncs.all male_rep1/juncs.all male_rep2/juncs.all | cut -f 1-7 | sort -u >> all_juncs.txt
+
+# The above makes a file with juncid plus these descriptive fields:
+#    dinucleotide,ntron_size,annostatus,gmcode,regcode,geneassign
+# these fields are not strictly necessary for downstream analysis,
+# but it is more convenient to pass these through, rather than to 
+# regenerate them from annotation.
 
 echo "[***************] Getting additional data from the female runs"
 make_curated_jtab -o female_rep1_curated -i  testdata/female_r1.bam -jlist all_juncs.txt -jtab female_rep1/juncs.all
