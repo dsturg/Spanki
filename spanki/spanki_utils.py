@@ -24,14 +24,22 @@ def gtf_to_attributes_dict(infn):
 		values = line.split("\t")
 		if len(values) > 1:
 			if (values[2] == "exon"):
+				#print "---------------\n"
+				#print "line is\n";
 				#print line
+				#print "---------------\n"				
 				attributes = values[8].split(";")
+				# Note there are gene names in Arabidopsis with a semicolon: "PIP1;2"
+				# This will cause a parsing error here.
 				del attributes[-1]
 				attributes = [x.strip() for x in attributes]
 				for attribute in attributes:
-					attr = attribute.strip().split(" ")
-					#print attr
-					linedict[attr[0]] = attr[1].strip("\"")
+					attr = attribute.strip().split(" ") # Split each item in attibutes line by space
+					try:
+						linedict[attr[0]] = attr[1].strip("\"") # Remove quotes from field data, key by first string in attr
+					except:
+						print line # Print the offending line
+						quit("GTF parsing error")
 				try:
 					attrdict[linedict['transcript_id']]['gene_id'] = linedict['gene_id']
 				except:
