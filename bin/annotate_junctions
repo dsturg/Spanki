@@ -294,128 +294,6 @@ def tab_to_dict(tabfile):
 		linecount += 1
 	return mytab
 
-def parse_aligns_detailed(samfile):
-	"""
-	Takes a sam file as input
-	Summarizes coverage, entropy, etc
-	v.2 uses the Junc class
-	"""
-	JTAB = collections.defaultdict(int)
-	UNFILT_JTAB = collections.defaultdict(int)
-	STAB = collections.defaultdict(lambda : collections.defaultdict(dict))
-	NEWDTAB = collections.defaultdict(lambda : collections.defaultdict(dict))
-	MMES = collections.defaultdict(lambda : collections.defaultdict(dict))
-	zero_anchor_warnings = 0
-	for alignedread in samfile:
-		if (len(alignedread.cigar) > 1):
-			# Note that alignedread.is_reverse does not work right to get strand
-			#strand = alignedread.tags[1][1] 
-			mytid = alignedread.tid
-			chr = samfile.getrname(mytid)
-			start = alignedread.pos
-			offset = alignedread.pos
-			cigar = alignedread.cigar
-			readseq = alignedread.query
-
-			subcigars = subdivideCigar(cigar)
-
-			for cigar in subcigars:
-				j1 = Junc(chr,start,cigar,readseq,alignedread.tags)
-				'''
-				For multi-gap cigars, you have to add to the start
-				for the next one
-				'''
-				start += int(len(j1.left_genome_aligned))
-				start += j1.gapsize
-
-				juncid = j1.juncid
-
-				
-				'''
-				Apply a restriction on anchor size
-				to count the junction
-				'''
-				min_anchor = min(len(j1.left_read_anchor),len(j1.right_read_anchor))
-
-				'''
-				Also count unfiltered (no anchor cutoff)
-				'''
-
-				if min_anchor < 1:
-					'''
-					Warn when anchor size is zero
-					For example, cigar 76M54354N
-					These are errors, and shouldn't count toward coverage
-					'''
-					zero_anchor_warnings += 1
-				else: 
-					UNFILT_JTAB[juncid] += 1; # Total junction spanning reads
-
-
-				if min_anchor >= 8:
-				
-					JTAB[juncid] += 1; # Total junction spanning reads
-	
-					'''
-					For MMES
-					'''
-					hdistl = hamming_distance(j1.left_read_anchor,j1.left_genome_aligned)
-					hdistr = hamming_distance(j1.right_read_anchor,j1.right_genome_aligned)
-					matchl = len(j1.left_read_anchor) - hdistl
-					matchr = len(j1.right_read_anchor) - hdistr
-					minmatch = matchl
-					if matchr < matchl: minmatch = matchr
-					if (MMES[j1.juncid]):
-						currentmax = MMES[j1.juncid]['MAXmmes']
-					else:
-						currentmax = 0
-						MMES[j1.juncid]['MAXminanc'] = 0
-					if currentmax > minmatch:
-						pass
-					else: MMES[j1.juncid]['MAXmmes'] = minmatch
-					
-					# Get smallest ancor of this alinment
-					minlen = len(j1.left_read_anchor)
-					if minlen > len(j1.right_read_anchor):
-						minlen = len(j1.right_read_anchor)
-					
-					# If the smallest anchor is bigger than current
-					# maximium, change the dict entry
-					if MMES[j1.juncid]['MAXminanc'] < minlen:
-						MMES[j1.juncid]['MAXminanc'] = minlen
-					
-					''' 
-					Original start of read is used as offset
-					even if it is a multi-join read
-					'''
-					if STAB[juncid][offset]:
-						STAB[juncid][offset] = STAB[juncid][offset] + 1
-					else: 
-						STAB[juncid][offset] = 1
-	
-					mysplit = juncid.split(":")
-					coords = mysplit[1]
-					donor, accid = coords.split("_")
-					donid = chr + ":" + donor
-					#donid, accid = juncid.split("_")
-					if NEWDTAB[donid][accid]:
-						NEWDTAB[donid][accid] += 1
-					else:
-						NEWDTAB[donid][accid] = 1
-				else:
-					#print "anchor too small", min_anchor, juncid, alignedread.qname
-					pass
-
-	# Coverage, indexed by donor
-	# NEWDTAB[donid][accid] 	
-	# Coverage, indexed by offset (For entropy calc)
-	#STAB[juncid][offset] (count)
-	# Count total junction spanning reads
-	#JTAB[juncid] (count)
-	if zero_anchor_warnings > 0:
-		print "[ WARNING ] ", zero_anchor_warnings, "alignments with zero anchor coverage excluded"
-	
-	return JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES
 
 def crossTabulate(x, fh):
 	D = collections.defaultdict(int)
@@ -457,80 +335,6 @@ def txlistToGeneList(mylist,lookup):
 	x = D.keys()
 	x.sort()
 	return x
-
-def donor_acceptor_transition(NEWDTAB,myjuncs):
-	"""
-	Gets donor-acceptor transition probabilities 
-	using junction coverage
-	"""
-	DATRANS = collections.defaultdict(lambda : collections.defaultdict(dict))
-	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
-	joinsbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
-	Ks = NEWDTAB.keys()
-	Ks.sort()
-	'''
-	First calculate coverage by edge (donor or acceptor)
-	Remember to check if each join has been filtered out
-	'''
-	for x in Ks:
-		#dcov = sum(NEWDTAB[x].values())
-		#covbyedge[x] = dcov
-		covbyedge[x] = 0
-		joinsbyedge[x] = 0
-		for y in NEWDTAB[x].keys():
-			'''
-			Get juncid
-			'''
-			juncid = str(x) + "_" + str(y)
-			if (juncid + ":+") in myjuncs:
-				juncid = juncid + ":+"
-			elif (juncid + ":-") in myjuncs:
-				juncid = juncid + ":-"
-			else:
-				pass
-			''' 
-			Check to see if it was filtered
-			'''
-			if juncid in myjuncs:
-				covbyedge[x] += NEWDTAB[x][y]
-				joinsbyedge[x] += 1
-				#jcov = NEWDTAB[x][y]
-				#print "Looking at ", x, "to", y, "with jcov", jcov
-				if covbyedge[y]:
-					covbyedge[y] += NEWDTAB[x][y]
-					joinsbyedge[y] += 1
-				else:
-					covbyedge[y] = NEWDTAB[x][y]
-					joinsbyedge[y] = 1
-	'''
-	Now instantiate hash of neighbor coverages keyed by juncid
-	Also do DATRANS
-	'''
-	NEIGHBORCOV = collections.defaultdict(lambda : collections.defaultdict(dict))
-	for x in Ks:
-		for y in NEWDTAB[x].keys():
-			juncid = str(x) + "_" + str(y)
-			if (juncid + ":+") in myjuncs:
-				juncid = juncid + ":+"
-			elif (juncid + ":-") in myjuncs:
-				juncid = juncid + ":-"
-			else:
-				pass
-
-			if (juncid in myjuncs):
-				#print "Looking at neighbor coverage"
-				jcov = NEWDTAB[x][y]
-				#print "covbyedge", covbyedge[x]
-				try:
-					trans = jcov/covbyedge[x]
-				except ZeroDivisionError:
-					trans = 0
-				DATRANS[juncid]['datrans'] = "%.3f" % trans
-				NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
-				NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
-				NEIGHBORCOV[juncid]['dnjoins'] = joinsbyedge[x]
-				NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[y]
-	return DATRANS, NEIGHBORCOV, joinsbyedge
 
 	
 def intron_readthrough(myjuncs,samfile):
@@ -1348,34 +1152,6 @@ def main():
 	#print('\n'.join(f.keys()))
 	
 
- 	'''
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Loading read alignments
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	# Load bamfiles
-	print >> sys.stderr, "[%s] Reading alignments from %s" % (spanki_utils.timestamp(), bamfile)
-	
-
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Parse the read alignments
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	# Parse the bam file
-	## Get a table of junctions, table of donors etc.
-	bamfh = pysam.Samfile( bamfile, "rb" )
-	bamchr = set(bamfh.references)
-	bam_not_fasta = bamchr.difference(fastachr)
-	fasta_not_bam = fastachr.difference(bamchr)
-	if len(bam_not_fasta) > 0:
-		print >> sys.stderr, "[%s] ERROR: Chromosomes in bam file header missing from fasta reference:" % (spanki_utils.timestamp()) 
-		print >> sys.stderr, ','.join(bam_not_fasta)
-		quit()
-	if len(fasta_not_bam) > 0:
-		print >> sys.stderr, "[%s] Warning: Chromosomes in fasta ref that have no alignments in bam:" % (spanki_utils.timestamp()) 
-		print >> sys.stderr, ','.join(fasta_not_bam)
-		
-	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES = parse_aligns_detailed(bamfh)
-	'''	
-
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load an annotation, flattened as bam
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1581,12 +1357,6 @@ def main():
 
 	myjuncs.sort()
 
-	# Coverage, indexed by donor
-	# NEWDTAB[donid][accid] 	
-	# Coverage, indexed by offset (For entropy calc)
-	#STAB[juncid][offset] (count)
-	# Count total junction spanning reads
-	#JTAB[juncid] (count)
 	
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Print junction list to the output directory
