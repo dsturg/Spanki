@@ -412,9 +412,13 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 		j1 = Junctionid(juncid)
 		donid = j1.donid
 		accid = j1.accid
-		jcov = NEWDTAB[donid][accid]
+		jcov = int(NEWDTAB[donid][accid])
+		print "junc: ", juncid
+		print "junccov: ", jcov
+		print "donid: ", donid
+		print "doncov: ", covbyedge[donid]
 		try:
-			trans = jcov/covbyedge[donid]
+			trans = jcov/int(covbyedge[donid])
 		except ZeroDivisionError:
 			trans = 0
 		DATRANS[juncid]['datrans'] = "%.3f" % trans
