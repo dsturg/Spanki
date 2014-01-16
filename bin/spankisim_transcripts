@@ -1169,7 +1169,6 @@ def main():
 	global mycov
 	global myrpk
 
-
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# Checking that required files are present
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1178,7 +1177,7 @@ def main():
 	if not gtffile:
 		quit("Need to specify a fasta file")
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	# Checking that model name is valid
+	# Checking that error model name is valid
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	possible_models = ['random','NIST','dm3','flyheads','custom']
 	
@@ -1197,6 +1196,7 @@ def main():
 	possible_models = ['random']
 	'''
 	Weighted random model is not yet supported
+	This is a placeholder until more start position models are added
 	'''
 	
 	if startmodel not in possible_models:
@@ -1234,20 +1234,12 @@ def main():
  		abundance_value = 1
  		mycov = 1
  		print >> log_out, abundance_metric + ":", abundance_value
- 	#~~~~~~~~~~~~~~~~~~~
-	# Load table of tx abundances
-	# to sim
-	#~~~~~~~~~~~~~~~~~~~
-	if txinput:
-		txtab = tab_to_dict(txinput)
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load a fasta file
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	
 	print >> sys.stderr, "[%s] Trying to load fasta %s" % (spanki_utils.timestamp(), fastafile)
 	f = Fasta(fastafile)
 	print >> sys.stderr, "[%s] Done loading fasta %s" % (spanki_utils.timestamp(), fastafile)
-	
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Intializing the reference
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1256,7 +1248,6 @@ def main():
   	## Note that you now have a reference called ref.bam, and a lookup dict
 	tmp_dir = output_dir + "/tmp/"
  	reffile = tmp_dir + "/ref.bam"
-
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load an annotation, flattened as BAM
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1274,10 +1265,15 @@ def main():
 	TX = reference_transcript_dict(reffh)
 	reffh.close()
 	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
-
-	
-	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#~~~~~~~~~~~~~~~~~~~
+	# Load table of tx abundances
+	# to sim (if provided)
+	#~~~~~~~~~~~~~~~~~~~
+	if txinput:
+		txtab = tab_to_dict(txinput)
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# Decide what transcripts to simulate
+	# Limit to select transcripts if a list is provided
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	reftx = TX.keys()
 	# Now limit to just those in the TX table (if applicable)

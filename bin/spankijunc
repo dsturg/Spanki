@@ -373,7 +373,7 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 			chr = x.split(':')[0]
 			coords = [int(x.split(':')[1]),int(y.split(':')[1])]
 			#coords.sort
-			if (coords[0] < coords[1]):
+			if (coords[0] <= coords[1]): # Note an intron size of one means don and acc coords are the same
 				juncid = chr + ":" + str(coords[0]) + "_" + str(coords[1]) + ":+"
 			else:
 				juncid = chr + ":" + str(coords[1]) + "_" + str(coords[0]) + ":-"
@@ -1459,7 +1459,7 @@ def main():
 				chr = x.split(':')[0]
 				coords = [int(x.split(':')[1]),int(y.split(':')[1])]
 				#coords.sort
-				if (coords[0] < coords[1]):
+				if (coords[0] <= coords[1]):
 					juncid = chr + ":" + str(coords[0]) + "_" + str(coords[1]) + ":+"
 				else:
 					juncid = chr + ":" + str(coords[1]) + "_" + str(coords[0]) + ":-"
