@@ -161,8 +161,19 @@ class Junctionid:
 		self.end = end
 		self.strand = strand.strip()
 		self.intronsize = end - start
-		self.accid = str(coords.split('_')[0])
-		self.donid = chr + ":" + str(end)
+		self.juncid_left = chr + ":" + str(coords.split('_')[0])
+		self.juncid_right = str(coords.split('_')[1]) + ":" + strand
+		# Make a unique ID for each donor/acceptor
+		# Assumes a position can't be both
+		if (strand == "+"):
+			self.donid = chr + ":" + str(coords.split('_')[0])
+			self.accid = chr + ":" + str(coords.split('_')[1])
+		else:
+			self.donid = chr + ":" + str(coords.split('_')[1])
+			self.accid = chr + ":" + str(coords.split('_')[0])
+		
+
+
 
 def parse_aligns_detailed(samfile,overhang):
 	"""
@@ -267,9 +278,11 @@ def parse_aligns_detailed(samfile,overhang):
 	
 					mysplit = juncid.split(":")
 					coords = mysplit[1]
-					donor, accid = coords.split("_")
-					donid = chr + ":" + donor
-					#donid, accid = juncid.split("_")
+					#donor, accid = coords.split("_")
+					#donid = chr + ":" + donor
+					j2 = Junctionid(juncid)
+					donid = j2.donid
+					accid = j2.accid
 					if NEWDTAB[donid][accid]:
 						NEWDTAB[donid][accid] += 1
 					else:
@@ -334,6 +347,8 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 	"""
 	Gets donor-acceptor transition probabilities 
 	using junction coverage
+	Note: It may be more efficient in the long term
+	to make a subroutine that does this from just junction coverage
 	"""
 	DATRANS = collections.defaultdict(lambda : collections.defaultdict(dict))
 	covbyedge = collections.defaultdict(lambda : collections.defaultdict(dict))
@@ -345,64 +360,79 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 	Remember to check if each join has been filtered out
 	'''
 	for x in Ks:
-		#dcov = sum(NEWDTAB[x].values())
-		#covbyedge[x] = dcov
-		covbyedge[x] = 0
-		joinsbyedge[x] = 0
+		#covbyedge[x] = 0
+		#joinsbyedge[x] = 0
 		for y in NEWDTAB[x].keys():
+			#if not covbyedge[y]:
+			#	covbyedge[y] = 0
 			'''
 			Get juncid
 			'''
-			juncid = str(x) + "_" + str(y)
-			if (juncid + ":+") in myjuncs:
-				juncid = juncid + ":+"
-			elif (juncid + ":-") in myjuncs:
-				juncid = juncid + ":-"
+			# Build juncid from donid,accid
+			# Extract coords from donid and accid, sort
+			chr = x.split(':')[0]
+			coords = [int(x.split(':')[1]),int(y.split(':')[1])]
+			#coords.sort
+			if (coords[0] < coords[1]):
+				juncid = chr + ":" + str(coords[0]) + "_" + str(coords[1]) + ":+"
 			else:
-				pass
+				juncid = chr + ":" + str(coords[1]) + "_" + str(coords[0]) + ":-"
 			''' 
 			Check to see if it was filtered
+			if the junc is in myjuncs, add to the hashes
 			'''
 			if juncid in myjuncs:
-				covbyedge[x] += NEWDTAB[x][y]
-				joinsbyedge[x] += 1
-				#jcov = NEWDTAB[x][y]
-				#print "Looking at ", x, "to", y, "with jcov", jcov
+				if covbyedge[x]:
+					covbyedge[x] += NEWDTAB[x][y]				
+				else:
+					covbyedge[x] = NEWDTAB[x][y]
+
 				if covbyedge[y]:
 					covbyedge[y] += NEWDTAB[x][y]
-					joinsbyedge[y] += 1
 				else:
 					covbyedge[y] = NEWDTAB[x][y]
+	
+				if joinsbyedge[x]:
+					joinsbyedge[x] += 1
+				else:
+					joinsbyedge[x] = 1
+
+				if joinsbyedge[y]:
+					joinsbyedge[y] += 1
+				else:
 					joinsbyedge[y] = 1
+
 	'''
 	Now instantiate hash of neighbor coverages keyed by juncid
 	Also do DATRANS
 	'''
 	NEIGHBORCOV = collections.defaultdict(lambda : collections.defaultdict(dict))
-	for x in Ks:
-		for y in NEWDTAB[x].keys():
-			juncid = str(x) + "_" + str(y)
-			if (juncid + ":+") in myjuncs:
-				juncid = juncid + ":+"
-			elif (juncid + ":-") in myjuncs:
-				juncid = juncid + ":-"
-			else:
-				pass
 
-			if (juncid in myjuncs):
-				#print "Looking at neighbor coverage"
-				jcov = NEWDTAB[x][y]
-				#print "covbyedge", covbyedge[x]
-				try:
-					trans = jcov/covbyedge[x]
-				except ZeroDivisionError:
-					trans = 0
-				DATRANS[juncid]['datrans'] = "%.3f" % trans
-				NEIGHBORCOV[juncid]['dncov'] = covbyedge[x] - jcov
-				NEIGHBORCOV[juncid]['ancov'] = covbyedge[y] - jcov
-				NEIGHBORCOV[juncid]['dnjoins'] = joinsbyedge[x]
-				NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[y]
+	for juncid in myjuncs: # Iterate over juncs to get DA transition probs and donor/acc cov
+		j1 = Junctionid(juncid)
+		donid = j1.donid
+		accid = j1.accid
+		jcov = NEWDTAB[donid][accid]
+		try:
+			trans = jcov/covbyedge[donid]
+		except ZeroDivisionError:
+			trans = 0
+		DATRANS[juncid]['datrans'] = "%.3f" % trans
+		#print juncid
+		#print donid
+		#print accid
+		#print covbyedge[donid]
+		#print covbyedge[accid]
+		#print joinsbyedge[donid]
+		#print jcov
+		#quit()
+		NEIGHBORCOV[juncid]['dncov'] = covbyedge[donid] - jcov
+		NEIGHBORCOV[juncid]['ancov'] = covbyedge[accid] - jcov
+		NEIGHBORCOV[juncid]['dnjoins'] = joinsbyedge[donid]
+		NEIGHBORCOV[juncid]['anjoins'] = joinsbyedge[accid]
+	
 	return DATRANS, NEIGHBORCOV, joinsbyedge
+
 
 	
 def intron_readthrough(myjuncs,samfile,overhang):
@@ -503,7 +533,7 @@ def subdivideCigar(cigar):
 	if gaps:
 		"""
 		IF there are no gaps(juncs)
-		return epty set
+		return empty set
 		"""
 		borders = [0]
 		for i in range(len(gaps[:-1])):
@@ -1421,8 +1451,17 @@ def main():
 		for x in Ks:
 			dcov = 0
 			for y in NEWDTAB[x].keys():
-				juncid = str(x) + "_" + str(y)
-				if ((juncid + ":+") in myjuncs) or ((juncid + ":-") in myjuncs):
+				# Build juncid from donid,accid
+				chr = x.split(':')[0]
+				coords = [int(x.split(':')[1]),int(y.split(':')[1])]
+				#coords.sort
+				if (coords[0] < coords[1]):
+					juncid = chr + ":" + str(coords[0]) + "_" + str(coords[1]) + ":+"
+				else:
+					juncid = chr + ":" + str(coords[1]) + "_" + str(coords[0]) + ":-"
+				#juncid = chr + ":" + str(coords[0]) + "_" + str(coords[1])
+				#juncid = str(x) + "_" + str(y)
+				if (juncid in myjuncs):
 					dcov += NEWDTAB[x][y]
 			if joinsbyedge[x] > 0:
 				print >> donor_out, '\t'.join(map(str,[x,dcov,joinsbyedge[x]]))

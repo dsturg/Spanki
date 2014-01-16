@@ -335,7 +335,14 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 			'''
 			Get juncid
 			'''
-			juncid = str(x) + "_" + str(y)
+			print "Hello"
+			print x, y
+			# Extract coords from donid and accid, sort
+			chr = x.split(':')[0]
+			coords = [x.split(':')[1],y.split(':')[1]]
+			coords.sort
+			juncid = chr + ":" + str(coords[0]) + "_" + str(coords[0])
+			quit(juncid)
 			if (juncid + ":+") in myjuncs:
 				juncid = juncid + ":+"
 			elif (juncid + ":-") in myjuncs:
