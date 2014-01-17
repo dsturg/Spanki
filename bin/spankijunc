@@ -224,7 +224,7 @@ def parse_aligns_detailed(samfile,overhang):
 				if j1.gapsize < 4:
 					#print >> sys.stderr, "[%s] Skipped < 4bp gap:" % (spanki_utils.timestamp())
 					print >> sys.stderr, "Skipped < 4bp gap:", juncid
-				} else {
+				else:
 				
 					'''
 					Apply a restriction on anchor size
@@ -302,7 +302,6 @@ def parse_aligns_detailed(samfile,overhang):
 					else:
 						#print "anchor too small", min_anchor, juncid, alignedread.qname
 						pass
-				}
 	# Coverage, indexed by donor
 	# NEWDTAB[donid][accid] 	
 	# Coverage, indexed by offset (For entropy calc)
