@@ -213,84 +213,96 @@ def parse_aligns_detailed(samfile,overhang):
 
 				juncid = j1.juncid
 
-				
-				'''
-				Apply a restriction on anchor size
-				to count the junction
-				'''
-				min_anchor = min(len(j1.left_read_anchor),len(j1.right_read_anchor))
-
-				'''
-				Also count unfiltered (no anchor cutoff)
-				'''
-
-				if min_anchor < 1:
-					'''
-					Warn when anchor size is zero
-					For example, cigar 76M54354N
-					These are errors, and shouldn't count toward coverage
-					'''
-					zero_anchor_warnings += 1
-				else: 
-					UNFILT_JTAB[juncid] += 1; # Total junction spanning reads
-
-
-				if min_anchor >= overhang:
-				
-					JTAB[juncid] += 1; # Total junction spanning reads
 	
+				'''
+				Apply a restriction on gap size
+				There are transcripts in mouse annotation for
+				example with 'introns' of length one:
+				chr7:13260899_13260899:-
+				These should not be processed
+				'''
+				if j1.gapsize < 4:
+					#print >> sys.stderr, "[%s] Skipped < 4bp gap:" % (spanki_utils.timestamp())
+					print >> sys.stderr, "Skipped < 4bp gap:", juncid
+				} else {
+				
 					'''
-					For MMES
+					Apply a restriction on anchor size
+					to count the junction
 					'''
-					hdistl = hamming_distance(j1.left_read_anchor,j1.left_genome_aligned)
-					hdistr = hamming_distance(j1.right_read_anchor,j1.right_genome_aligned)
-					matchl = len(j1.left_read_anchor) - hdistl
-					matchr = len(j1.right_read_anchor) - hdistr
-					minmatch = matchl
-					if matchr < matchl: minmatch = matchr
-					if (MMES[j1.juncid]):
-						currentmax = MMES[j1.juncid]['MAXmmes']
-					else:
-						currentmax = 0
-						MMES[j1.juncid]['MAXminanc'] = 0
-					if currentmax > minmatch:
-						pass
-					else: MMES[j1.juncid]['MAXmmes'] = minmatch
-					
-					# Get smallest ancor of this alinment
-					minlen = len(j1.left_read_anchor)
-					if minlen > len(j1.right_read_anchor):
-						minlen = len(j1.right_read_anchor)
-					
-					# If the smallest anchor is bigger than current
-					# maximium, change the dict entry
-					if MMES[j1.juncid]['MAXminanc'] < minlen:
-						MMES[j1.juncid]['MAXminanc'] = minlen
-					
-					''' 
-					Original start of read is used as offset
-					even if it is a multi-join read
+					min_anchor = min(len(j1.left_read_anchor),len(j1.right_read_anchor))
+
 					'''
-					if STAB[juncid][offset]:
-						STAB[juncid][offset] = STAB[juncid][offset] + 1
+					Also count unfiltered (no anchor cutoff)
+					'''
+
+					if min_anchor < 1:
+						'''
+						Warn when anchor size is zero
+						For example, cigar 76M54354N
+						These are errors, and shouldn't count toward coverage
+						'''
+						zero_anchor_warnings += 1
 					else: 
-						STAB[juncid][offset] = 1
-	
-					mysplit = juncid.split(":")
-					coords = mysplit[1]
-					#donor, accid = coords.split("_")
-					#donid = chr + ":" + donor
-					j2 = Junctionid(juncid)
-					donid = j2.donid
-					accid = j2.accid
-					if NEWDTAB[donid][accid]:
-						NEWDTAB[donid][accid] += 1
-					else:
-						NEWDTAB[donid][accid] = 1
-				else:
-					#print "anchor too small", min_anchor, juncid, alignedread.qname
-					pass
+						UNFILT_JTAB[juncid] += 1; # Total junction spanning reads
 
+
+					if min_anchor >= overhang:
+				
+						JTAB[juncid] += 1; # Total junction spanning reads
+	
+						'''
+						For MMES
+						'''
+						hdistl = hamming_distance(j1.left_read_anchor,j1.left_genome_aligned)
+						hdistr = hamming_distance(j1.right_read_anchor,j1.right_genome_aligned)
+						matchl = len(j1.left_read_anchor) - hdistl
+						matchr = len(j1.right_read_anchor) - hdistr
+						minmatch = matchl
+						if matchr < matchl: minmatch = matchr
+						if (MMES[j1.juncid]):
+							currentmax = MMES[j1.juncid]['MAXmmes']
+						else:
+							currentmax = 0
+							MMES[j1.juncid]['MAXminanc'] = 0
+						if currentmax > minmatch:
+							pass
+						else: MMES[j1.juncid]['MAXmmes'] = minmatch
+					
+						# Get smallest ancor of this alinment
+						minlen = len(j1.left_read_anchor)
+						if minlen > len(j1.right_read_anchor):
+							minlen = len(j1.right_read_anchor)
+					
+						# If the smallest anchor is bigger than current
+						# maximium, change the dict entry
+						if MMES[j1.juncid]['MAXminanc'] < minlen:
+							MMES[j1.juncid]['MAXminanc'] = minlen
+					
+						''' 
+						Original start of read is used as offset
+						even if it is a multi-join read
+						'''
+						if STAB[juncid][offset]:
+							STAB[juncid][offset] = STAB[juncid][offset] + 1
+						else: 
+							STAB[juncid][offset] = 1
+	
+						mysplit = juncid.split(":")
+						coords = mysplit[1]
+						#donor, accid = coords.split("_")
+						#donid = chr + ":" + donor
+						j2 = Junctionid(juncid)
+						donid = j2.donid
+						accid = j2.accid
+						if NEWDTAB[donid][accid]:
+							NEWDTAB[donid][accid] += 1
+						else:
+							NEWDTAB[donid][accid] = 1
+					else:
+						#print "anchor too small", min_anchor, juncid, alignedread.qname
+						pass
+				}
 	# Coverage, indexed by donor
 	# NEWDTAB[donid][accid] 	
 	# Coverage, indexed by offset (For entropy calc)
@@ -1273,6 +1285,7 @@ def main():
  	# If you filter any junctions out,
  	# then they can't be included in neighbor coverages
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 	if (filter == "T"):
 		filtered_count = 0
