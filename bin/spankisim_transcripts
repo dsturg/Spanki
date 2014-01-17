@@ -206,6 +206,7 @@ def implodeCigar(cigar):
 def weighted_choice(weights):
 	# See:
 	#http://eli.thegreenplace.net/2010/01/22/weighted-random-generation-in-python/
+	#print "weights", weights
 	totals = np.cumsum(weights)
 	norm = totals[-1]
 	throw = np.random.rand()*norm
@@ -1327,6 +1328,7 @@ def main():
 	MMPOS
 	"""
 	mmposprob = models.getMMPOSmodel(model,mybp,customdir)
+
 	if len(mmposprob) > mybp:
 		print "Warning: mmpos model is longer than the simulated read lenth"
 		mmposprob = mmposprob[0:mybp-1]

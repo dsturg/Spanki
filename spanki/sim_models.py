@@ -109,6 +109,7 @@ def getMMPOSmodel(model,mybp,customdir):
 		mmprob = [myseed] * 10
 		for x in range(myseed,mybp):
 			mmprob.append(myseed + x)
+		mmposprob = mmprob
 
 	elif (model == "NIST"):
 		myresource = str('data/' + model + '_mmcounts.txt')
