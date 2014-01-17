@@ -186,6 +186,7 @@ def parse_aligns_detailed(samfile,overhang):
 	STAB = collections.defaultdict(lambda : collections.defaultdict(dict))
 	NEWDTAB = collections.defaultdict(lambda : collections.defaultdict(dict))
 	MMES = collections.defaultdict(lambda : collections.defaultdict(dict))
+	smallGapSkips = []
 	zero_anchor_warnings = 0
 	totalreads = 0;
 	for alignedread in samfile:
@@ -199,7 +200,6 @@ def parse_aligns_detailed(samfile,overhang):
 			offset = alignedread.pos
 			cigar = alignedread.cigar
 			readseq = alignedread.query
-
 			subcigars = subdivideCigar(cigar)
 
 			for cigar in subcigars:
@@ -222,8 +222,7 @@ def parse_aligns_detailed(samfile,overhang):
 				These should not be processed
 				'''
 				if j1.gapsize < 4:
-					#print >> sys.stderr, "[%s] Skipped < 4bp gap:" % (spanki_utils.timestamp())
-					print >> sys.stderr, "Skipped < 4bp gap:", juncid
+					smallGapSkips.append[juncid]
 				else:
 				
 					'''
@@ -308,6 +307,9 @@ def parse_aligns_detailed(samfile,overhang):
 	#STAB[juncid][offset] (count)
 	# Count total junction spanning reads
 	#JTAB[juncid] (count)
+	smallGapSkips = list(set(smallGapSkips))
+	for juncid in smallGapSkips:
+		print >> sys.stderr, "Skipped < 4bp gap:", juncid
 	if zero_anchor_warnings > 0:
 		print "[ WARNING ] ", zero_anchor_warnings, "alignments with zero anchor coverage excluded"
 	
@@ -424,10 +426,10 @@ def donor_acceptor_transition(NEWDTAB,myjuncs):
 		donid = j1.donid
 		accid = j1.accid
 		jcov = int(NEWDTAB[donid][accid])
-		print "junc: ", juncid
-		print "junccov: ", jcov
-		print "donid: ", donid
-		print "doncov: ", covbyedge[donid]
+		#print "junc: ", juncid
+		#print "junccov: ", jcov
+		#print "donid: ", donid
+		#print "doncov: ", covbyedge[donid]
 		try:
 			trans = jcov/int(covbyedge[donid])
 		except ZeroDivisionError:
