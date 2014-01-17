@@ -222,7 +222,7 @@ def parse_aligns_detailed(samfile,overhang):
 				These should not be processed
 				'''
 				if j1.gapsize < 4:
-					smallGapSkips.append[juncid]
+					smallGapSkips.append(juncid)
 				else:
 				
 					'''
