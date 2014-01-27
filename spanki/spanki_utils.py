@@ -28,9 +28,11 @@ def gtf_to_attributes_dict(infn):
 				#print "line is\n";
 				#print line
 				#print "---------------\n"				
-				attributes = values[8].split(";")
+				attributes = values[8].split("; ")
 				# Note there are gene names in Arabidopsis with a semicolon: "PIP1;2"
 				# This will cause a parsing error here.
+				# Note I now split on 'semicolon + space" - be on the lookout for exceptions
+				# such as gene names with spaces
 				del attributes[-1]
 				attributes = [x.strip() for x in attributes]
 				for attribute in attributes:

@@ -249,38 +249,43 @@ def sam2junc(cigartuple,strand,chr,start):
 def simReadDev(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmposprob, TX, spl2pre, f, refjuncs, qualscore, mmqual):
 
 	'''
-	Choose random start
+	Choose random start within the transcript
 	'''
 	randstart = random.randint(0, len(myseq) - mybp - 1)
 
 	'''
 	Get read sequence
+	# myseq is sense? 
 	'''
 	read = myseq[randstart:randstart + mybp]
-	
+	print "*"	
 	'''
 	Get position in parent transcript and in genome
+	2014 - removed spl2pre - not needed!
 	'''
-	prestart = spl2pre[randstart]
-	preend = spl2pre[randstart + mybp]
+	#prestart = spl2pre[randstart]
+	#preend = spl2pre[randstart + mybp]
+	prestart = randstart
+	preend = randstart + mybp
 
 	genomicstart = pre2genome[prestart]
-	mystart = genomicstart
 	genomicend = pre2genome[preend]
-
+	mystart = genomicstart
+	print "**"
 	'''
 	Make cigar string
 	'''
 	readcigar = mycigar[prestart:preend]
-	
+	print "***"
 	'''
 	Randomly flip strand, but remember original strand
+	2014 - removing flip here, try adding it at the end
 	'''
 	mystrand = strandidx[0]
 	flip = random.randrange(2)
 	if (flip > 0): 
 		mystrand = strandidx[1]
-	
+	print "****"
 	'''
 	Track reads than span splice junctions
 	jsr means 'Junction Spanning Read'
@@ -295,17 +300,19 @@ def simReadDev(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mm
 	if mystrand == "-":
 		read = read.reverse_complement()
 
+	print "newcigar: ", newcigar
 	if bool(jsr):	
 		checkread = getReadSequence(mystart, TX[mytx]['chr'], mystrand, newcigar, f)
 		if str(read) != str(checkread):
-			print read
-			print checkread
+			print "Failed test, regenerating read sequence"
+			print "read: ", read
+			print "check: ", checkread
 			quit()
 
 	'''
 	Get counts of simmed reads for each junc
 	'''
-	
+	print "******"
 	if bool(jsr): # If it is a junction spanning read
 		cigartuple = cigarToTuple(newcigar)
 		#print cigartuple
@@ -380,7 +387,7 @@ def simReadDev(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mm
 	'''
 	Make a samfile line
 	'''
-
+	print "*******"
 	samline = []
 	samline.append(id)
 	if mystrand == "+":
@@ -437,7 +444,7 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 		mystrand = strandidx[1]
 	
 	'''
-	Track reads than span splice junctions
+	Track reads that span splice junctions
 	jsr means 'Junction Spanning Read'
 	'''
 	jsr = 0
@@ -457,7 +464,9 @@ def simRead(mytx,readnum,myseq,mycigar,pre2genome,strandidx, mybp, mmprob, mmpos
 			print checkread
 			quit()
 
+	'''
 	# Get counts of simmed reads for each junc
+	'''
 	if bool(jsr): # If it is a junction spanning read
 		cigartuple = cigarToTuple(newcigar)
 		#print cigartuple
@@ -1249,12 +1258,18 @@ def main():
   	## Note that you now have a reference called ref.bam, and a lookup dict
 	tmp_dir = output_dir + "/tmp/"
  	reffile = tmp_dir + "/ref.bam"
+	#~~~~~~~~~~~~~~~~~~~
+	# Load table of tx abundances
+	# to sim (if provided)
+	#~~~~~~~~~~~~~~~~~~~
+	if txinput:
+		txtab = tab_to_dict(txinput)
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Load an annotation, flattened as BAM
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	print >> sys.stderr, "[%s] Loading annotation as bam" % (spanki_utils.timestamp())
  	reffh = pysam.Samfile( reffile, "rb" )
-	
+	print txtab
 	if txinput:
 		edgedict, refjuncs = spanki_parse_utils.parseRefSelectionAsBam(reffh,txtab.keys())
 	else:
@@ -1266,12 +1281,6 @@ def main():
 	TX = reference_transcript_dict(reffh)
 	reffh.close()
 	print >> sys.stderr, "[%s] Done loading annotation as bam" % (spanki_utils.timestamp())
-	#~~~~~~~~~~~~~~~~~~~
-	# Load table of tx abundances
-	# to sim (if provided)
-	#~~~~~~~~~~~~~~~~~~~
-	if txinput:
-		txtab = tab_to_dict(txinput)
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	# Decide what transcripts to simulate
 	# Limit to select transcripts if a list is provided
@@ -1553,7 +1562,26 @@ def main():
 			
 			if (startmodel == "random"):
 				if myends == 1:
-					readtuple, samline = simRead(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual)
+					'''
+					print "mytx: ", mytx
+					print "x: ", x
+					print "myseq: ", myseq
+					print "myscigar: ", mycigar
+					print "mycoords:", mycoords
+					print "strandidx: ", strandidx
+					print "mybp: ", mybp
+					print "mmprob:", mmprob
+					print "mposprob:", mmposprob
+					print "TX", TX
+					print "myspl2pre: ", myspl2pre
+					print "f: ", f
+					print "refjuncs: ", refjuncs
+					print "qualstring: ", qualstring
+					print "mmqual: ", mmqual
+					'''
+					print "here1"
+					readtuple, samline = simReadDev(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual)
+					print "here2"
 				else:
 					readtuple, samline = simReadPE(mytx,x, myseq, mycigar, mycoords, strandidx, mybp, mmprob, mmposprob, TX, myspl2pre, f, refjuncs, qualstring, mmqual, myends, myfragsize)
 			elif (startmodel == "weighted"):

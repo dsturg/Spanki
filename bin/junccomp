@@ -43,6 +43,16 @@ class Junctionid:
 		self.accid = str(coords.split('_')[0])
 		self.donid = chr + ":" + str(end)
 
+class Progress():
+    """
+    Print things to stdout on one line dynamically
+    See:
+    http://www.mutaku.com/wp/index.php/2011/06/python-dynamically-printing-to-single-line-of-stdout/
+    """
+    def __init__(self,data):
+        sys.stdout.write("\r\x1b[K"+data.__str__())
+        sys.stdout.flush()
+
 def tab_to_dict(tabfile):
 	"""
 	Generic make a dict from a table
@@ -93,6 +103,13 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+        
 def parse_options(desc):
 	parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	#parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
@@ -173,144 +190,165 @@ def main():
 	else:
 		print "Getting intersection between tables"
 		keyoverlap = [x for x in keys1 if x in keys2]
+
 	counter = len(keyoverlap)
+	jcount = 0
+
+	skipped = []
 
 	for x in keyoverlap:
-		j1 = Junctionid(x)
-		strand = j1.strand
-		if (strand in '+'):
-			#print x, "plus strand", j1.strand, len(strand)
-			#print tab1[x]
-			donor_irt1 = int(tab1[x]['lirt'])
-			donor_irt2 = int(tab2[x]['lirt'])
-			acc_irt1 = int(tab1[x]['rirt'])
-			acc_irt2 = int(tab2[x]['rirt'])
+		jcount += 1
+		if is_number(tab1[x]['dncov']) and is_number(tab1[x]['ancov']) and is_number(tab2[x]['dncov']) and is_number(tab2[x]['ancov']):
+			j1 = Junctionid(x)
+			strand = j1.strand
+			if (strand in '+'):
+				#print x, "plus strand", j1.strand, len(strand)
+				#print tab1[x]
+				donor_irt1 = int(tab1[x]['lirt'])
+				donor_irt2 = int(tab2[x]['lirt'])
+				acc_irt1 = int(tab1[x]['rirt'])
+				acc_irt2 = int(tab2[x]['rirt'])
+			else:
+				#print x, "minus strand", j1.strand, len(strand)
+				#print tab1[x]
+				donor_irt1 = int(tab1[x]['rirt'])
+				donor_irt2 = int(tab2[x]['rirt'])
+				acc_irt1 = int(tab1[x]['lirt'])
+				acc_irt2 = int(tab2[x]['lirt'])
+	
+			'''
+			Check for empty cells, replace with zero
+			'''
+			if not tab1[x]['cov']: tab1[x]['cov'] = 0
+			if not tab1[x]['irt']: tab1[x]['irt'] = 0
+			if not tab1[x]['ancov']: tab1[x]['ancov'] = 0
+			if not tab1[x]['dncov']: tab1[x]['dncov'] = 0
+			if not tab2[x]['cov']: tab2[x]['cov'] = 0
+			if not tab2[x]['irt']: tab2[x]['irt'] = 0
+			if not tab2[x]['ancov']: tab2[x]['ancov'] = 0
+			if not tab2[x]['dncov']: tab2[x]['dncov'] = 0
+	
+		
+			## IRT comparison
+			p = pvalue(int(tab1[x]['cov']), int(tab1[x]['irt']) , int(tab2[x]['cov']), int(tab2[x]['irt']))
+			myresults[x]['pval_irt'] = p.two_tail
+			p_irt.append(p.two_tail)
+
+			## Donor-level test
+			p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + donor_irt1, int(tab2[x]['cov']), int(tab2[x]['dncov']) + donor_irt2)
+			myresults[x]['pval_dncov'] = p.two_tail
+			p_dncov.append(p.two_tail)
+
+			## Donor-level test (Deprecated)
+			#p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']))
+			#myresults[x]['pval_dncov'] = p.two_tail
+			#p_dncov.append(p.two_tail)
+
+			## Acceptor-level test  (No longer reported)
+			p = pvalue(int(tab1[x]['cov']), int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['ancov']))
+			myresults[x]['pval_ancov'] = p.two_tail
+			p_ancov.append(p.two_tail)
+
+			## First order connections test (No longer reported)
+			## Compare junction coverage to donor-neighbor and acceptor-neighbor coverage.
+			p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']) + int(tab2[x]['ancov']))
+			myresults[x]['pval_tncov'] = p.two_tail
+			p_tncov.append(p.two_tail)
+	
+			'''
+			Adding tests for donor and acceptor
+			neighbor coverage plus irt
+			''' 
+			p = pvalue(int(tab1[x]['cov']), donor_irt1 , int(tab2[x]['cov']), donor_irt2)
+			myresults[x]['pval_donor'] = p.two_tail
+			p_donor.append(p.two_tail)
+			p = pvalue(int(tab1[x]['cov']), acc_irt1 , int(tab2[x]['cov']), acc_irt2)
+			myresults[x]['pval_acceptor'] = p.two_tail
+			p_acceptor.append(p.two_tail)
+
+	
+			myresults[x]['dinucleotide'] = tab1[x]['dinucleotide']
+			myresults[x]['geneassign'] = tab1[x]['geneassign']
+			'''
+			Adding annotation
+			'''
+			myresults[x]['annostatus'] = tab1[x]['annostatus']
+			myresults[x]['intron_size'] = tab1[x]['intron_size']
+			myresults[x]['gmcode'] = tab1[x]['gmcode']	
+			myresults[x]['regcode'] = tab1[x]['regcode']
+		
+			myresults[x]['cov1'] = tab1[x]['cov']
+			myresults[x]['cov2'] = tab2[x]['cov']
+			#myresults[x]['lirt1'] = tab1[x]['lirt']
+			#myresults[x]['lirt2'] = tab2[x]['lirt']
+			#myresults[x]['rirt1'] = tab1[x]['rirt']
+			#myresults[x]['rirt2'] = tab2[x]['rirt']
+			myresults[x]['donor_irt1'] = donor_irt1
+			myresults[x]['donor_irt2'] = donor_irt2
+			myresults[x]['acc_irt1'] = acc_irt1
+			myresults[x]['acc_irt2'] = acc_irt2
+			myresults[x]['irt1'] = tab1[x]['irt']
+			myresults[x]['irt2'] = tab2[x]['irt']
+			myresults[x]['dncov1'] = tab1[x]['dncov']
+			myresults[x]['dncov2'] = tab2[x]['dncov']
+			myresults[x]['ancov1'] = tab1[x]['ancov']
+			myresults[x]['ancov2'] = tab2[x]['ancov']
+		
+			dncov1 = int(tab1[x]['dncov'])
+			dncov2 = int(tab2[x]['dncov'])
+			cov1 = int(tab1[x]['cov'])
+			cov2 = int(tab2[x]['cov'])
+			irt1 = int(tab1[x]['irt'])
+			irt2 = int(tab2[x]['irt'])
+		
+			totalcov1 = int(dncov1) + donor_irt1 + int(cov1)
+			totalcov2 = int(dncov2) + donor_irt2 + int(cov2)
+			myresults[x]['totalcov1'] = totalcov1
+			myresults[x]['totalcov2'] = totalcov2
+			myresults[x]['avg_totalcov'] = (totalcov1 + totalcov2) / 2
+			#myresults[x]['avg_totalcov'] = ((dncov1 + donor_irt1 + cov1) + (dncov2 + donor_irt2 + cov2)) / 2
+		
+			try:
+				psi_donor1 = (donor_irt1 + dncov1) / (donor_irt1 + dncov1 + cov1)
+			except ZeroDivisionError:
+				psi_donor1 = 0
+			try:
+				psi_irt1 = (irt1/2) / ((irt1/2) + cov1)
+			except ZeroDivisionError:
+				psi_irt1 = 0
+		
+			try:
+				psi_donor2 = (donor_irt2 + dncov2) / (donor_irt2 + dncov2 + cov2)
+			except ZeroDivisionError:
+				psi_donor2 = 0
+			try:
+				psi_irt2 = (irt2/2) / ((irt2/2) + cov2)
+			except ZeroDivisionError:
+				psi_irt2 = 0
+
+			myresults[x]['PSI_donor1'] = psi_donor1
+			myresults[x]['PSI_IRT1'] = psi_irt1
+			myresults[x]['PSI_donor2'] = psi_donor2
+			myresults[x]['PSI_IRT2'] = psi_irt2
+
+			myresults[x]['deltaPSI_donor'] = psi_donor1 - psi_donor2
+			myresults[x]['deltaPSI_IRT'] = psi_irt1 - psi_irt2
+	
 		else:
-			#print x, "minus strand", j1.strand, len(strand)
-			#print tab1[x]
-			donor_irt1 = int(tab1[x]['rirt'])
-			donor_irt2 = int(tab2[x]['rirt'])
-			acc_irt1 = int(tab1[x]['lirt'])
-			acc_irt2 = int(tab2[x]['lirt'])
+			#print "Skipping", x, "because of incomplete data\n"	
+			skipped.append(x)
+		#~~~~~~~~~~~~~~~~~~~
+		# Print status
+		#~~~~~~~~~~~~~~~~~~~
+		output = "%d of %d completed" % (jcount,counter)
+		Progress(output)
+
+	if len(skipped) > 0:
+		print "\nSkipped these junctions with incomplete data:"
+		print "\n".join(skipped)
+		
+	print "[%s] Doing FDR" % (spanki_utils.timestamp())
 	
-		'''
-		Check for empty cells, replace with zero
-		'''
-		if not tab1[x]['cov']: tab1[x]['cov'] = 0
-		if not tab1[x]['irt']: tab1[x]['irt'] = 0
-		if not tab1[x]['ancov']: tab1[x]['ancov'] = 0
-		if not tab1[x]['dncov']: tab1[x]['dncov'] = 0
-		if not tab2[x]['cov']: tab2[x]['cov'] = 0
-		if not tab2[x]['irt']: tab2[x]['irt'] = 0
-		if not tab2[x]['ancov']: tab2[x]['ancov'] = 0
-		if not tab2[x]['dncov']: tab2[x]['dncov'] = 0
-	
-		
-		## IRT comparison
-		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['irt']) , int(tab2[x]['cov']), int(tab2[x]['irt']))
-		myresults[x]['pval_irt'] = p.two_tail
-		p_irt.append(p.two_tail)
-
-		## Donor-level test
-		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + donor_irt1, int(tab2[x]['cov']), int(tab2[x]['dncov']) + donor_irt2)
-		myresults[x]['pval_dncov'] = p.two_tail
-		p_dncov.append(p.two_tail)
-
-		## Donor-level test (Deprecated)
-		#p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']))
-		#myresults[x]['pval_dncov'] = p.two_tail
-		#p_dncov.append(p.two_tail)
-
-		## Acceptor-level test  (No longer reported)
-		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['ancov']))
-		myresults[x]['pval_ancov'] = p.two_tail
-		p_ancov.append(p.two_tail)
-
-		## First order connections test (No longer reported)
-		## Compare junction coverage to donor-neighbor and acceptor-neighbor coverage.
-		p = pvalue(int(tab1[x]['cov']), int(tab1[x]['dncov']) + int(tab1[x]['ancov']) , int(tab2[x]['cov']), int(tab2[x]['dncov']) + int(tab2[x]['ancov']))
-		myresults[x]['pval_tncov'] = p.two_tail
-		p_tncov.append(p.two_tail)
-	
-		'''
-		Adding tests for donor and acceptor
-		neighbor coverage plus irt
-		''' 
-		p = pvalue(int(tab1[x]['cov']), donor_irt1 , int(tab2[x]['cov']), donor_irt2)
-		myresults[x]['pval_donor'] = p.two_tail
-		p_donor.append(p.two_tail)
-		p = pvalue(int(tab1[x]['cov']), acc_irt1 , int(tab2[x]['cov']), acc_irt2)
-		myresults[x]['pval_acceptor'] = p.two_tail
-		p_acceptor.append(p.two_tail)
-
-	
-		myresults[x]['geneassign'] = tab1[x]['geneassign']
-		'''
-		Adding annotation
-		'''
-		myresults[x]['annostatus'] = tab1[x]['annostatus']
-		myresults[x]['intron_size'] = tab1[x]['intron_size']
-		myresults[x]['gmcode'] = tab1[x]['gmcode']	
-		myresults[x]['regcode'] = tab1[x]['regcode']
-		
-		myresults[x]['cov1'] = tab1[x]['cov']
-		myresults[x]['cov2'] = tab2[x]['cov']
-		#myresults[x]['lirt1'] = tab1[x]['lirt']
-		#myresults[x]['lirt2'] = tab2[x]['lirt']
-		#myresults[x]['rirt1'] = tab1[x]['rirt']
-		#myresults[x]['rirt2'] = tab2[x]['rirt']
-		myresults[x]['donor_irt1'] = donor_irt1
-		myresults[x]['donor_irt2'] = donor_irt2
-		myresults[x]['acc_irt1'] = acc_irt1
-		myresults[x]['acc_irt2'] = acc_irt2
-		myresults[x]['irt1'] = tab1[x]['irt']
-		myresults[x]['irt2'] = tab2[x]['irt']
-		myresults[x]['dncov1'] = tab1[x]['dncov']
-		myresults[x]['dncov2'] = tab2[x]['dncov']
-		myresults[x]['ancov1'] = tab1[x]['ancov']
-		myresults[x]['ancov2'] = tab2[x]['ancov']
-		
-		dncov1 = int(tab1[x]['dncov'])
-		dncov2 = int(tab2[x]['dncov'])
-		cov1 = int(tab1[x]['cov'])
-		cov2 = int(tab2[x]['cov'])
-		irt1 = int(tab1[x]['irt'])
-		irt2 = int(tab2[x]['irt'])
-		
-		totalcov1 = int(dncov1) + donor_irt1 + int(cov1)
-		totalcov2 = int(dncov2) + donor_irt2 + int(cov2)
-		myresults[x]['totalcov1'] = totalcov1
-		myresults[x]['totalcov2'] = totalcov2
-		myresults[x]['avg_totalcov'] = (totalcov1 + totalcov2) / 2
-		#myresults[x]['avg_totalcov'] = ((dncov1 + donor_irt1 + cov1) + (dncov2 + donor_irt2 + cov2)) / 2
-		
-		try:
-			psi_donor1 = (donor_irt1 + dncov1) / (donor_irt1 + dncov1 + cov1)
-		except ZeroDivisionError:
-			psi_donor1 = 0
-		try:
-			psi_irt1 = (irt1/2) / ((irt1/2) + cov1)
-		except ZeroDivisionError:
-			psi_irt1 = 0
-		
-		try:
-			psi_donor2 = (donor_irt2 + dncov2) / (donor_irt2 + dncov2 + cov2)
-		except ZeroDivisionError:
-			psi_donor2 = 0
-		try:
-			psi_irt2 = (irt2/2) / ((irt2/2) + cov2)
-		except ZeroDivisionError:
-			psi_irt2 = 0
-
-		myresults[x]['PSI_donor1'] = psi_donor1
-		myresults[x]['PSI_IRT1'] = psi_irt1
-		myresults[x]['PSI_donor2'] = psi_donor2
-		myresults[x]['PSI_IRT2'] = psi_irt2
-
-		myresults[x]['deltaPSI_donor'] = psi_donor1 - psi_donor2
-		myresults[x]['deltaPSI_IRT'] = psi_irt1 - psi_irt2
-		
-		
 	#~~~~~~~~~~~~~~~~~~~
 	# FDR correction
 	#~~~~~~~~~~~~~~~~~~~
@@ -322,7 +360,7 @@ def main():
 	bh_pvals_donor = fdrcorrection0(p_donor, alpha=alpha, method='indep')[1]
 	bh_pvals_acceptor = fdrcorrection0(p_acceptor, alpha=alpha, method='indep')[1]
 
-	
+
 	qconv_irt = dict(zip(p_irt,bh_pvals_irt))
 	qconv_dncov = dict(zip(p_dncov,bh_pvals_dncov))
 	qconv_ancov = dict(zip(p_ancov,bh_pvals_ancov))
@@ -330,10 +368,12 @@ def main():
 	qconv_donor = dict(zip(p_donor,bh_pvals_donor))
 	qconv_acceptor = dict(zip(p_acceptor,bh_pvals_acceptor))
 
+
+
 	#for q in bh_pvals:
 		#if (q < 0.05):  
 			#print >> comp_out, "Q:", q
-			
+		
 
 	'''	
 	for x in myresults:
@@ -372,6 +412,7 @@ def main():
 	print_dict_sorted_ordered(myresults,concise_comp_out,sortfield,fieldorder)
 
 	################
+	
 	print "[%s] Run completed" % (spanki_utils.timestamp())
 
 	
