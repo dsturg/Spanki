@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
         name='spanki',
-        version='0.4.3dev',
+        version='0.4.3',
         #py_modules=['modules/spanki_parse_utils,modules/spanki_utils'],
         packages = ['spanki'],
         package_data={'spanki': ['data/*.txt']},
