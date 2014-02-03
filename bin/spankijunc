@@ -1154,6 +1154,8 @@ def main():
 		
 	JTAB,UNFILT_JTAB,STAB,NEWDTAB,MMES,totalreads = parse_aligns_detailed(bamfh,overhang)
 	
+	print >> log_out, "Total read alignments processed:", totalreads
+
 	#print "totalreads is ", totalreads
 	#quit();
 
@@ -1387,7 +1389,7 @@ def main():
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
-			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
+			RESULTS[juncid]['normcov'] = int(JTAB[juncid]) / (totalreads / 1E06)
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
 			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
 			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
@@ -1411,7 +1413,7 @@ def main():
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
-			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
+			RESULTS[juncid]['normcov'] = int(JTAB[juncid]) / (totalreads / 1E06)
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
 			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
 			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
@@ -1432,7 +1434,7 @@ def main():
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['cov'] = JTAB[juncid]
-			RESULTS[juncid]['normcov'] = JTAB[juncid] / totalreads * 1E06
+			RESULTS[juncid]['normcov'] = int(JTAB[juncid]) / (totalreads / 1E06)
 			RESULTS[juncid]['unfilt_cov'] = UNFILT_JTAB[juncid]
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['annostatus'] = ANNOSTATUS[juncid]
