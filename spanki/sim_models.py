@@ -93,6 +93,10 @@ def getMMNUMmodel(model,mybp,customdir):
 				mmprob.append(int(values[1]))
 			except:
 				pass
+	
+	elif (model == "errorfree"):
+		mmprob = 0
+		
 	return mmprob
 
 def getMMPOSmodel(model,mybp,customdir):
@@ -151,6 +155,9 @@ def getMMPOSmodel(model,mybp,customdir):
 				mmposprob.append(int(values[1]))
 			except:
 				pass
+	elif (model == "errorfree"):
+		mmposprob = [0] * mybp
+
 	return mmposprob
 
 def getMMTYPEmodel(model,customdir):
@@ -158,6 +165,24 @@ def getMMTYPEmodel(model,customdir):
 	mmtypeprob = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	if (model == "random"):
+		# Equal probability of each
+		mmtypeprob['A']['C'] = 25
+		mmtypeprob['A']['G'] = 25
+		mmtypeprob['A']['T'] = 25
+		mmtypeprob['A']['N'] = 25
+		mmtypeprob['C']['A'] = 25
+		mmtypeprob['C']['G'] = 25
+		mmtypeprob['C']['T'] = 25
+		mmtypeprob['C']['N'] = 25
+		mmtypeprob['G']['C'] = 25
+		mmtypeprob['G']['A'] = 25
+		mmtypeprob['G']['T'] = 25
+		mmtypeprob['G']['N'] = 25
+		mmtypeprob['T']['C'] = 25
+		mmtypeprob['T']['G'] = 25
+		mmtypeprob['T']['A'] = 25
+		mmtypeprob['T']['N'] = 25
+	elif (model == "errorfree"):
 		# Equal probability of each
 		mmtypeprob['A']['C'] = 25
 		mmtypeprob['A']['G'] = 25
@@ -229,6 +254,9 @@ def getQUALmodel(model,mybp,customdir):
 
 	qualstring = ""
 	if (model == "random"):
+		# Equal probability of each
+		qualstring = "G" * mybp
+	elif (model == "errorfree"):
 		# Equal probability of each
 		qualstring = "G" * mybp
 	elif (model == "NIST"):
@@ -318,7 +346,11 @@ def getMMQUALmodel(model,customdir):
 	'''
 	Return consensus quality score for mismatched bases
 	'''
+	qual = ""
 	if (model == "random"):
+		# Equal probability of each
+		qual = "#"
+	elif (model == "errorfree"):
 		# Equal probability of each
 		qual = "#"
 	elif (model == "NIST"):
@@ -377,7 +409,6 @@ def getMMQUALmodel(model,customdir):
 					temp = int(values[1])
 			except:
 				pass
-
 	return qual
 
 if __name__ == "__main__":
