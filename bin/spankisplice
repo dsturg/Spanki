@@ -187,6 +187,9 @@ def chain_to_joins(flankstring,chainstring,chr,strand,eventcode):
 		else: joins1.append(chr + ":" + str(int(x[1]) + 1) + "_" + str(int(x[0]) - 1) + ":" + strand)
 	joins2 = []
 	coords = p.findall(path2)
+	print "----- coords ----"
+	print coords
+	print "-----------------"
 	for coord in coords:
 		q = re.compile('\d+')
 		x = q.findall(coord)
@@ -954,7 +957,7 @@ def main():
 		if linedict:
 			counter += 1		
 			eventid = 'ASTA' + "%07d" % (counter,)
-			#print line
+			print eventid, line
 			joins = []
 			joins.extend(linedict['joins2'])
 			joins.extend(linedict['joins1'])
