@@ -260,7 +260,7 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	print "juncid\tunfilt_cov\tcov"
 	for juncid in myjuncs:
-		print juncid, UNFILT_JTAB[juncid], JTAB[juncid]
+		print juncid, "\t", UNFILT_JTAB[juncid], "\t", JTAB[juncid]
 
 	
 	
