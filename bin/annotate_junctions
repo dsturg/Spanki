@@ -418,10 +418,12 @@ def alignment_entropies(STAB,JTAB):
 	
 
 def hamming_distance(s1, s2):
-	assert len(s1) == len(s2)
-	s1 = s1.upper()
-	s2 = s2.upper()
-	return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
+	if len(s1) == len(s2):
+		s1 = s1.upper()
+		s2 = s2.upper()
+		return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
+	else:
+		return "na"
 
 def subdivideCigar(cigar):
 	# Get gap indices
@@ -958,6 +960,7 @@ def parse_options(desc):
 	parser.add_argument('-o', help="Output directory, default='junctions_out'", action="store", dest="o", default="./junctions_out/")
 	parser.add_argument('-s', type=int, help='Flanking intron sequence (number of bases)', action="store", dest="s", default=20)
 	parser.add_argument('-r', type=int, help='Size to examine for repeats (number of bases)', action="store", dest="r", default=10)
+	parser.add_argument('-v', help='Verbose, detailed analysis (T/F)', action="store", dest="v", default="T")
 	args = parser.parse_args()
 	# See here for argparse instructions:
 	# http://docs.python.org/dev/library/argparse.html
@@ -995,6 +998,7 @@ gtffile = args.g
 fastafile = args.f
 flankseq = args.s
 repeat_size = args.r
+verbose = args.v
 #filter = args.filter
 
 # Checking that input files exist
@@ -1065,6 +1069,10 @@ if gtffile:
 #donor_out = open(donor_out_name, "w")
 log_out_name = output_dir + "/logs/log.txt"
 log_out = open(log_out_name, "w")
+
+if verbose not in ["T","F"]:
+	quit("Choose a valid option for '-v'")
+                      	
 	
 def main():
 	
@@ -1217,113 +1225,115 @@ def main():
 	################################
 	################################
 
-	print >> sys.stderr, "[%s] Analyzing sequence for NAGNAG" % (spanki_utils.timestamp())
+	if verbose == "T":
 
-	offset = 9
+		print >> sys.stderr, "[%s] Analyzing sequence for NAGNAG" % (spanki_utils.timestamp())
+
+		offset = 9
 	
-	NAG = collections.defaultdict(lambda : collections.defaultdict(dict))
+		NAG = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	
-	for x in myjuncs:
-		#print '*', x
-		j1 = Junctionid(x)
-		#j1.display()
-		nag0junc = "-"
-		nag3junc = "-"
-		nag6junc = "-"
-		if j1.strand == "+":
-			tempseq = Seq(f[j1.chr][j1.acceptor:j1.acceptor + offset], IUPAC.unambiguous_dna)
-			nagstartsup = find_nagstarts(tempseq)
-			tempseq = Seq(f[j1.chr][j1.acceptor - offset - 3:j1.acceptor - 3], IUPAC.unambiguous_dna)
-			nagstartsdowntemp = find_nagstarts(tempseq)
-			nagstartsdown = []
-			for start in nagstartsdowntemp:
-				start = start - offset - 3
-				nagstartsdown.append(start)
-			nagstarts = []
-			nagstarts.extend(nagstartsup)
-			nagstarts.extend(nagstartsdown)
+		for x in myjuncs:
+			#print '*', x
+			j1 = Junctionid(x)
+			#j1.display()
+			nag0junc = "-"
+			nag3junc = "-"
+			nag6junc = "-"
+			if j1.strand == "+":
+				tempseq = Seq(f[j1.chr][j1.acceptor:j1.acceptor + offset], IUPAC.unambiguous_dna)
+				nagstartsup = find_nagstarts(tempseq)
+				tempseq = Seq(f[j1.chr][j1.acceptor - offset - 3:j1.acceptor - 3], IUPAC.unambiguous_dna)
+				nagstartsdowntemp = find_nagstarts(tempseq)
+				nagstartsdown = []
+				for start in nagstartsdowntemp:
+					start = start - offset - 3
+					nagstartsdown.append(start)
+				nagstarts = []
+				nagstarts.extend(nagstartsup)
+				nagstarts.extend(nagstartsdown)
 			
-			'''
-			Make a string of all nag starts
-			'''
-			if len(nagstarts) < 1:
-				nagstring = "-"
-			else:
-				s = map(str, nagstarts) 
-				nagstring = ",".join(s)
+				'''
+				Make a string of all nag starts
+				'''
+				if len(nagstarts) < 1:
+					nagstring = "-"
+				else:
+					s = map(str, nagstarts) 
+					nagstring = ",".join(s)
 		
-			'''
-			Make a string of all nags in frame
-			'''
-			nagframestarts = []
-			for start in nagstarts:
-				if start % 3 == 0: nagframestarts.append(start)
-			if len(nagframestarts) < 1:
-				nagframestring = "-"
-			else:
-				s = map(str, nagframestarts) 
-				nagframestring = ",".join(s)
+				'''
+				Make a string of all nags in frame
+				'''
+				nagframestarts = []
+				for start in nagstarts:
+					if start % 3 == 0: nagframestarts.append(start)
+				if len(nagframestarts) < 1:
+					nagframestring = "-"
+				else:
+					s = map(str, nagframestarts) 
+					nagframestring = ",".join(s)
 				
-			if 6 in nagstarts:
-				nag6junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 9) + ":" + j1.strand
-			if 3 in nagstarts:
-				nag3junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 6) + ":" + j1.strand
-			if 0 in nagstarts:
-				nag0junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 3) + ":" + j1.strand
+				if 6 in nagstarts:
+					nag6junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 9) + ":" + j1.strand
+				if 3 in nagstarts:
+					nag3junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 6) + ":" + j1.strand
+				if 0 in nagstarts:
+					nag0junc = j1.chr + ":" + str(j1.donor + 1) + "_" + str(j1.acceptor + 3) + ":" + j1.strand
 
-		elif j1.strand == "-":
+			elif j1.strand == "-":
 
-			tempseq = Seq(f[j1.chr][j1.acceptor:j1.acceptor - offset], IUPAC.unambiguous_dna)
-			tempseq = tempseq.reverse_complement()
-			nagstartsup = find_nagstarts(tempseq)
-			tempseq = Seq(f[j1.chr][j1.acceptor + 3:j1.acceptor + offset + 3], IUPAC.unambiguous_dna)
-			tempseq = tempseq.reverse_complement()
-			nagstartsdowntemp = find_nagstarts(tempseq)
-			nagstartsdown = []
-			for start in nagstartsdowntemp:
-				start = start - offset - 3
-				nagstartsdown.append(start)
-			nagstarts = []
-			nagstarts.extend(nagstartsup)
-			nagstarts.extend(nagstartsdown)
+				tempseq = Seq(f[j1.chr][j1.acceptor:j1.acceptor - offset], IUPAC.unambiguous_dna)
+				tempseq = tempseq.reverse_complement()
+				nagstartsup = find_nagstarts(tempseq)
+				tempseq = Seq(f[j1.chr][j1.acceptor + 3:j1.acceptor + offset + 3], IUPAC.unambiguous_dna)
+				tempseq = tempseq.reverse_complement()
+				nagstartsdowntemp = find_nagstarts(tempseq)
+				nagstartsdown = []
+				for start in nagstartsdowntemp:
+					start = start - offset - 3
+					nagstartsdown.append(start)
+				nagstarts = []
+				nagstarts.extend(nagstartsup)
+				nagstarts.extend(nagstartsdown)
 			
-			'''
-			Make a frame of all nag starts
-			'''
-			if len(nagstarts) < 1:
-				nagstring = "-"
-			else:
-				s = map(str, nagstarts) 
-				nagstring = ",".join(s)
+				'''
+				Make a frame of all nag starts
+				'''
+				if len(nagstarts) < 1:
+					nagstring = "-"
+				else:
+					s = map(str, nagstarts) 
+					nagstring = ",".join(s)
 		
-			'''
-			Make a string of all nags in frame
-			'''
-			nagframestarts = []
-			for start in nagstarts:
-				if start % 3 == 0: nagframestarts.append(start)
-			if len(nagframestarts) < 1:
-				nagframestring = "-"
-			else:
-				s = map(str, nagframestarts) 
-				nagframestring = ",".join(s)
+				'''
+				Make a string of all nags in frame
+				'''
+				nagframestarts = []
+				for start in nagstarts:
+					if start % 3 == 0: nagframestarts.append(start)
+				if len(nagframestarts) < 1:
+					nagframestring = "-"
+				else:
+					s = map(str, nagframestarts) 
+					nagframestring = ",".join(s)
 
-			'''
-			tempseq = Seq(f[j1.chr][j1.donor-offset:j1.donor], IUPAC.unambiguous_dna)
-			tempseq = tempseq.reverse_complement()
-			nagstring = find_nagstring(tempseq)
-			nagframestring = "foo"
-			'''
-		else:
-			quit("Don't recognize strand")
-		NAG[x]['nagstring'] = nagstring
-		NAG[x]['nagframestring'] = nagframestring
-		NAG[x]['NAG0'] = nag0junc
-		NAG[x]['NAG3'] = nag3junc
-		NAG[x]['NAG6'] = nag6junc
-		NAG[x]['TOTALFRAMENAG'] = len(nagframestarts)
-			#fiveprimeflank = fiveprimeflank.reverse_complement()
+				'''
+				tempseq = Seq(f[j1.chr][j1.donor-offset:j1.donor], IUPAC.unambiguous_dna)
+				tempseq = tempseq.reverse_complement()
+				nagstring = find_nagstring(tempseq)
+				nagframestring = "foo"
+				'''
+			else:
+				quit("Don't recognize strand")
+			NAG[x]['nagstring'] = nagstring
+			NAG[x]['nagframestring'] = nagframestring
+			NAG[x]['NAG0'] = nag0junc
+			NAG[x]['NAG3'] = nag3junc
+			NAG[x]['NAG6'] = nag6junc
+			NAG[x]['TOTALFRAMENAG'] = len(nagframestarts)
+				#fiveprimeflank = fiveprimeflank.reverse_complement()
 
 
 
@@ -1471,13 +1481,14 @@ def main():
  	# Extract sequence info for each join
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
- 	#offset = 20
- 	offset = flankseq
- 	INTSEQ = intron_sequence(myjuncs,f,offset)
+	#offset = 20
+	offset = flankseq
+	INTSEQ = intron_sequence(myjuncs,f,offset)
 	print >> sys.stderr, "[%s] Extracted intron sequence" % (spanki_utils.timestamp())
 
- 	MAXENTSEQ = maxent_sequence(myjuncs,f)
-	print >> sys.stderr, "[%s] Extracted intron sequence for maxentscan files" % (spanki_utils.timestamp())
+ 	if verbose == "T":
+		MAXENTSEQ = maxent_sequence(myjuncs,f)
+		print >> sys.stderr, "[%s] Extracted intron sequence for maxentscan files" % (spanki_utils.timestamp())
 
 
 
@@ -1488,8 +1499,9 @@ def main():
 	#  Requires fasta sequence
 	################################
 	################################
-	print >> sys.stderr, "[%s] Getting intron / anchor similarity" % (spanki_utils.timestamp())
-	ANCHAM = anchor_hamming(myjuncs,f,repeat_size)
+ 	if verbose == "T":
+		print >> sys.stderr, "[%s] Getting intron / anchor similarity" % (spanki_utils.timestamp())
+		ANCHAM = anchor_hamming(myjuncs,f,repeat_size)
 
 	################################
 	################################
@@ -1526,7 +1538,10 @@ def main():
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	if gtffile:
-		fieldorder = ['chr','annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','mod3','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5','donor_outdegree','acceptor_indegree','donor_maxent','acceptor_maxent']
+		if verbose == "T":
+			fieldorder = ['chr','annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','mod3','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5','donor_outdegree','acceptor_indegree','donor_maxent','acceptor_maxent']
+		else:
+			fieldorder = ['chr','annostatus','geneassignL','geneassignR','geneassignOv','geneassignAn','geneassign','gmcode','regcode','dinucleotide','intron_size','mod3']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
@@ -1544,32 +1559,37 @@ def main():
 			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
 			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
 			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
-			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
-			RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
-			RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
-			RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
-			RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
-			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
-			RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
-			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
-			RESULTS[juncid]['donor_outdegree'] = don_outdegree[j1.donid]
-			RESULTS[juncid]['acceptor_indegree'] = acc_indegree[j1.accid]
-			RESULTS[juncid]['donor_maxent'] = MAXENTSEQ[juncid]['5ss']
-			RESULTS[juncid]['acceptor_maxent'] = MAXENTSEQ[juncid]['3ss']
+			if verbose == "T":
+				RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+				RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
+				RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
+				RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
+				RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
+				RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+				RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
+				RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
+				RESULTS[juncid]['donor_outdegree'] = don_outdegree[j1.donid]
+				RESULTS[juncid]['acceptor_indegree'] = acc_indegree[j1.accid]
+				RESULTS[juncid]['donor_maxent'] = MAXENTSEQ[juncid]['5ss']
+				RESULTS[juncid]['acceptor_maxent'] = MAXENTSEQ[juncid]['3ss']
 	else:
-		fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
+		if verbose == "T":
+			fieldorder = ['dinucleotide','intron_size','nag','nagframe','nag0','nag3','nag6','totalframenag','hamming3','hamming5']
+		else:
+			fieldorder = ['dinucleotide','intron_size']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
-			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
-			RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
-			RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
-			RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
-			RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
-			RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
-			RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
-			RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
+			if verbose == "T":
+				RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+				RESULTS[juncid]['nagframe'] = NAG[juncid]['nagframestring'] 
+				RESULTS[juncid]['nag0'] = NAG[juncid]['NAG0'] 
+				RESULTS[juncid]['nag3'] = NAG[juncid]['NAG3'] 
+				RESULTS[juncid]['nag6'] = NAG[juncid]['NAG6']
+				RESULTS[juncid]['totalframenag'] = NAG[juncid]['TOTALFRAMENAG'] 
+				RESULTS[juncid]['hamming3'] =  ANCHAM[juncid]['hamming3']
+				RESULTS[juncid]['hamming5'] =  ANCHAM[juncid]['hamming5']
 	
 
 	print_dict_ordered(RESULTS,juncs_all_out,fieldorder)
@@ -1581,7 +1601,10 @@ def main():
 	RESULTS = collections.defaultdict(lambda : collections.defaultdict(dict))
 
 	if gtffile:
-		fieldorder = ['annostatus','geneassign','gmcode','regcode','dinucleotide','intron_size','nag']
+		if verbose == "T":
+			fieldorder = ['annostatus','geneassign','gmcode','regcode','dinucleotide','intron_size','nag']
+		else:
+			fieldorder = ['annostatus','geneassign','gmcode','regcode','dinucleotide','intron_size']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
@@ -1590,14 +1613,16 @@ def main():
 			RESULTS[juncid]['gmcode'] = GENEINFO[juncid]['gmcode']
 			RESULTS[juncid]['regcode'] = GENEINFO[juncid]['regcode']
 			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
-			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+			if verbose == "T":
+				RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
 	else:
 		fieldorder = ['dinucleotide','intron_size','nag']
 		for juncid in myjuncs:
 			j1 = Junctionid(juncid)
 			RESULTS[juncid]['intron_size'] = j1.intronsize
 			RESULTS[juncid]['dinucleotide'] = INTSEQ[juncid]['dinucleotide']
-			RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
+			if verbose == "T":
+				RESULTS[juncid]['nag'] = NAG[juncid]['nagstring']
 
 	
 
@@ -1609,15 +1634,16 @@ def main():
  	# Printing adjoining sequence
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	fieldorder = ['flank5','intron5','intron3','flank3']
 	#for juncid in myjuncs:
 	#	INTSEQ[juncid]['flank5'] = fiveprimeflank
 	#	INTSEQ[juncid]['flank3'] = threeprimeflank
 	#	INTSEQ[juncid]['intron5'] = fiveprimeIntron
 	#	INTSEQ[juncid]['intron3'] = threeprimeIntron
 
-	print_dict_ordered(INTSEQ,juncs_seq,fieldorder)		
-	#printDict(RESULTS,juncs_all_out)
+	if verbose == "T":
+		fieldorder = ['flank5','intron5','intron3','flank3']
+		print_dict_ordered(INTSEQ,juncs_seq,fieldorder)		
+		#printDict(RESULTS,juncs_all_out)
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# MAXENTSCAN files
@@ -1627,13 +1653,14 @@ def main():
 	#fieldorder = ['3ss']
 	#print_dict_ordered(MAXENTSEQ,maxent3_seq,fieldorder)		
 
-	mykeys = MAXENTSEQ.keys()
-	mykeys.sort()
-	for x in mykeys:
-		print >> maxent5_seq, '>' + x
-		print >> maxent5_seq, MAXENTSEQ[x]['5ss']
-		print >> maxent3_seq, '>' + x
-		print >> maxent3_seq, MAXENTSEQ[x]['3ss']
+	if verbose == "T":
+		mykeys = MAXENTSEQ.keys()
+		mykeys.sort()
+		for x in mykeys:
+			print >> maxent5_seq, '>' + x
+			print >> maxent5_seq, MAXENTSEQ[x]['5ss']
+			print >> maxent3_seq, '>' + x
+			print >> maxent3_seq, MAXENTSEQ[x]['3ss']
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Printing donors and acceptors
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1645,7 +1672,7 @@ def main():
 			print >> acc_out, edge, acc_indegree[edge] 
 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Printing Gene-centered info (prototype)
+ 	# Printing Gene-centered info
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	
  	 #{'start': [6026834], 'intron': ['chr3L:6027394_6027445:-'], '
