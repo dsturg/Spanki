@@ -556,15 +556,6 @@ def get_coverage(eventdict,DATAB):
 			exc_adj = cov2
 		
 
-
-		#if (eventdict[eventid]['eventcode'] == "AltFE") or (eventdict[eventid]['eventcode'] == "AltLE"):
-			#inc_adj = join1COV[0]
-			#exc_adj = join2COV[0]
-		#	inc = join1COV[0]
-		#	exc = join2COV[0]
-		#	sites1 = 1
-		#	sites2 = 1
-
 		'''
 		Calculate psi (for both forms)
 		'''
@@ -1082,9 +1073,9 @@ def main():
 	sens mode
 	'''
 	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','incov','excov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
 	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','incov','excov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 
 	
 	RESULTS = eventdict
@@ -1094,8 +1085,11 @@ def main():
 		RESULTS[i]['excov'] = RESULTS[i]['exccov_sens'] 
 		RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_sens']
 		RESULTS[i]['exc_sites'] = RESULTS[i]['exc_sites_sens'] 
+		#print i, RESULTS[i]['incov'], RESULTS[i]['inccov_sens'], RESULTS[i]['excov'], RESULTS[i]['exccov_sens']
+		#print "Before:", RESULTS[i]['opt_calc_type'], RESULTS[i]['inc'], RESULTS[i]['exc'], RESULTS[i]['inc_sens'], RESULTS[i]['exc_sens']
 		RESULTS[i]['inc'] = RESULTS[i]['inc_sens']
 		RESULTS[i]['exc'] = RESULTS[i]['exc_sens'] 
+		#print "After:", RESULTS[i]['opt_calc_type'], RESULTS[i]['inc'], RESULTS[i]['exc'], RESULTS[i]['inc_sens'], RESULTS[i]['exc_sens']
 		RESULTS[i]['totalcov'] = RESULTS[i]['totalcov_sens']
 		RESULTS[i]['avgcovpersite'] = RESULTS[i]['avgcovpersite_sens'] 
 		RESULTS[i]['psi'] = RESULTS[i]['psi_sens'] 
