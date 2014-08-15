@@ -145,29 +145,23 @@ def main():
 		myresults[event]['joinstring'] = tab1[event]['joinstring']
 		myresults[event]['inc_sites'] = int(tab1[event]['inc_sites'])
 		myresults[event]['exc_sites'] = int(tab1[event]['exc_sites'])
+		myresults[event]['inccov1'] = int(tab1[event]['inccov'])
+		myresults[event]['exccov1'] = int(tab1[event]['exccov'])
 		myresults[event]['inc1'] = float(tab1[event]['inc'])
 		myresults[event]['exc1'] = float(tab1[event]['exc'])
-		
-	
-		#myresults[event]['inc1_adj'] = int(tab1[event]['inc_adj'])
-		#myresults[event]['exc1_adj'] = int(tab1[event]['exc_adj'])
 		myresults[event]['psi1'] = float(tab1[event]['psi'])
-		#myresults[event]['psi1_adj'] = float(tab1[event]['psi_adj'])
 
+		myresults[event]['inccov2'] = int(tab2[event]['inccov'])
+		myresults[event]['exccov2'] = int(tab2[event]['exccov'])
 		myresults[event]['inc2'] = float(tab2[event]['inc'])
 		myresults[event]['exc2'] = float(tab2[event]['exc'])
-		#myresults[event]['inc2_adj'] = int(tab2[event]['inc_adj'])
-		#myresults[event]['exc2_adj'] = int(tab2[event]['exc_adj'])
 		myresults[event]['psi2'] = float(tab2[event]['psi'])
-		#myresults[event]['psi2_adj'] = float(tab2[event]['psi_adj'])
 
 		myresults[event]['delta_psi'] = myresults[event]['psi1'] - myresults[event]['psi2'] 
 
 		myresults[event]['totalcovpersite1'] = float(tab1[event]['inc']) + float(tab1[event]['exc'])
 		myresults[event]['totalcovpersite2'] = float(tab2[event]['inc']) + float(tab2[event]['exc'])
 		myresults[event]['avgcovpersite'] = (myresults[event]['totalcovpersite1'] + myresults[event]['totalcovpersite2']) / 2
-
-		#myresults[event]['delta_psi_adj'] = myresults[event]['psi1_adj'] - myresults[event]['psi2_adj'] 
 		
 		#myresults[event]['pval_adj'] = padj.two_tail
 		try: 
@@ -227,9 +221,9 @@ def main():
 	The fpkm > 0 is a binomial to indicate whether FPKMs are present (1 means there are FPKMS).
 	'''
 	if fpkm > 0:
-		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','delta_psi','totalcovpersite1','totalcovpersite2','avgcovpersite','pval','qval','fpkm_proportion1','fpkm_proportion2']
+		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inccov1','exccov1','inc1','exc1','psi1','inccov2','exccov2','inc2','exc2','psi2','delta_psi','totalcovpersite1','totalcovpersite2','avgcovpersite','pval','qval','fpkm_proportion1','fpkm_proportion2']
 	else:
-		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inc1','exc1','psi1','inc2','exc2','psi2','totalcovpersite1','totalcovpersite2','avgcovpersite','delta_psi','pval','qval']
+		fieldorder = ['gene_id','gene_name','transcript_id','eventcode','structure','joinstring','inc_sites','exc_sites','inccov1','exccov1','inc1','exc1','psi1','inccov2','exccov2','inc2','exc2','psi2','totalcovpersite1','totalcovpersite2','avgcovpersite','delta_psi','pval','qval']
 	
 	sortfield = 'pval'
 	print_dict_sorted_ordered(myresults,comp_out,sortfield,fieldorder,'event_id')

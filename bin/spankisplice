@@ -583,6 +583,7 @@ def get_coverage(eventdict,DATAB):
 		#eventdict[eventid]['psi'] = "%.3f" % psi
 		#eventdict[eventid]['psi_adj'] = "%.3f" % psi_adj		
 
+		## Sensitive mode
 		eventdict[eventid]['joinstring_sens'] = eventdict[eventid]['joinstring']
 		eventdict[eventid]['inccov_sens'] = cov1
 		eventdict[eventid]['exccov_sens'] = cov2
@@ -594,9 +595,11 @@ def get_coverage(eventdict,DATAB):
 		eventdict[eventid]['exc_sens'] = exc
 		eventdict[eventid]['psi_sens'] = "%.3f" % psi
 
+		## Confounding coverage
 		eventdict[eventid]['confounding_inccov'] = confound_cov1
 		eventdict[eventid]['confounding_exccov'] = confound_cov2
 
+		## Precise mode
 		eventdict[eventid]['joinstring_prec'] = joinstring_adj
 		eventdict[eventid]['inccov_prec'] = cov1_adj
 		eventdict[eventid]['exccov_prec'] = cov2_adj
@@ -608,42 +611,47 @@ def get_coverage(eventdict,DATAB):
 		eventdict[eventid]['exc_prec'] = exc_adj
 		eventdict[eventid]['psi_prec'] = "%.3f" % psi_adj
 
+
+		## This is where choice of sens or prec is made.
+		## Should be deprecated, since 'opt' is no longer reported. 
+		
 		if (confound_cov1 > 0) | (confound_cov2 > 0):
-			eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring_prec']
 			eventdict[eventid]['opt_calc_type'] = "prec"
-			eventdict[eventid]['inccov'] = cov1_adj
-			eventdict[eventid]['exccov'] = cov2_adj
-			eventdict[eventid]['totalcov'] = cov1_adj + cov2_adj
-			eventdict[eventid]['avgcovpersite'] = (inc_adj + exc_adj) / 2
-			eventdict[eventid]['inc_sites'] = sites1_adj
-			eventdict[eventid]['exc_sites'] = sites2_adj
-			eventdict[eventid]['inc'] = inc_adj
-			eventdict[eventid]['exc'] = exc_adj
-			eventdict[eventid]['psi'] = "%.3f" % psi_adj
+			#eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring_prec']
+			#eventdict[eventid]['inccov'] = cov1_adj
+			#eventdict[eventid]['exccov'] = cov2_adj
+			#eventdict[eventid]['totalcov'] = cov1_adj + cov2_adj
+			#eventdict[eventid]['avgcovpersite'] = (inc_adj + exc_adj) / 2
+			#eventdict[eventid]['inc_sites'] = sites1_adj
+			#eventdict[eventid]['exc_sites'] = sites2_adj
+			#eventdict[eventid]['inc'] = inc_adj
+			#eventdict[eventid]['exc'] = exc_adj
+			#eventdict[eventid]['psi'] = "%.3f" % psi_adj
 		else:
-			eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring_sens']
 			eventdict[eventid]['opt_calc_type'] = "sens"
-			eventdict[eventid]['inccov'] = cov1
-			eventdict[eventid]['exccov'] = cov2
-			eventdict[eventid]['totalcov'] = cov1 + cov2
-			eventdict[eventid]['avgcovpersite'] = (inc + exc) / 2
-			eventdict[eventid]['inc_sites'] = sites1 
-			eventdict[eventid]['exc_sites'] = sites2 
-			eventdict[eventid]['inc'] = inc
-			eventdict[eventid]['exc'] = exc
-			eventdict[eventid]['psi'] = "%.3f" % psi
+			#eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring_sens']
+			#eventdict[eventid]['inccov'] = cov1
+			#eventdict[eventid]['exccov'] = cov2
+			#eventdict[eventid]['totalcov'] = cov1 + cov2
+			#eventdict[eventid]['avgcovpersite'] = (inc + exc) / 2
+			#eventdict[eventid]['inc_sites'] = sites1 
+			#eventdict[eventid]['exc_sites'] = sites2 
+			#eventdict[eventid]['inc'] = inc
+			#eventdict[eventid]['exc'] = exc
+			#eventdict[eventid]['psi'] = "%.3f" % psi
 
-
-		eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring']
-		eventdict[eventid]['inccov'] = eventdict[eventid]['inccov']
-		eventdict[eventid]['exccov'] = eventdict[eventid]['exccov'] 
-		eventdict[eventid]['totalcov'] = eventdict[eventid]['totalcov']
-		eventdict[eventid]['avgcovpersite'] = eventdict[eventid]['avgcovpersite']
-		eventdict[eventid]['inc_sites'] = eventdict[eventid]['inc_sites']
-		eventdict[eventid]['exc_sites'] = eventdict[eventid]['exc_sites']
-		eventdict[eventid]['inc'] = eventdict[eventid]['inc']
-		eventdict[eventid]['exc'] = eventdict[eventid]['exc']
-		eventdict[eventid]['psi'] = eventdict[eventid]['psi']
+		
+		## This is redundant:
+		#eventdict[eventid]['joinstring'] =  eventdict[eventid]['joinstring']
+		#eventdict[eventid]['inccov'] = eventdict[eventid]['inccov']
+		#eventdict[eventid]['exccov'] = eventdict[eventid]['exccov'] 
+		#eventdict[eventid]['totalcov'] = eventdict[eventid]['totalcov']
+		#eventdict[eventid]['avgcovpersite'] = eventdict[eventid]['avgcovpersite']
+		#eventdict[eventid]['inc_sites'] = eventdict[eventid]['inc_sites']
+		#eventdict[eventid]['exc_sites'] = eventdict[eventid]['exc_sites']
+		#eventdict[eventid]['inc'] = eventdict[eventid]['inc']
+		#eventdict[eventid]['exc'] = eventdict[eventid]['exc']
+		#eventdict[eventid]['psi'] = eventdict[eventid]['psi']
 
 
 
@@ -711,7 +719,6 @@ class MyParser(argparse.ArgumentParser):
 def parseions(desc):
 	#parser=MyParser(description=desc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser=MyParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
-	#parser.add_argument('-r', help='reference', action="store", dest="r")
 	parser.add_argument('-g', help='Reference GTF', action="store", dest="g")
 	parser.add_argument('-a', action="store", dest="a",
 		help="AStalavista definitions\n"
@@ -748,7 +755,6 @@ http://genome.crg.es/astalavista/
 
 args = parseions(desc)
 outfile = args.o
-#reffile = args.r
 gtffile = args.g
 jfile = args.jtab
 cfile = args.c
@@ -791,7 +797,6 @@ if not os.path.exists(jfile):
 
 
 # Prepare output directory
-# Prepare output directory
 output_dir = outfile
 spanki_utils.prepare_output_dir(output_dir)
 # Prepare output file names
@@ -800,7 +805,8 @@ asta_counts_out_sens_name = output_dir + "/events.out"
 asta_counts_out_sens = open(asta_counts_out_sens_name, "w")
 
 if (verbose != "F"):
-
+	# Report 'precise' table only if in verbose mode
+	
 	# These two tables are deprecated
 	#asta_counts_out_opt_name = output_dir + "/events_opt.out"
 	#asta_counts_out_opt = open(asta_counts_out_opt_name, "w")
@@ -830,16 +836,7 @@ def main():
 		quit("Need to specify a fasta file")
 	if not gtffile:
 		quit("Need to specify a gtf file")
-		
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# Intializing the reference
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 	# You need the gtf file, and the fasta file
- 	#global lookup
- 	#lookup = prep_ref_sub.prep_ref(gtffile,fastafile)
-  	## Note that you now have a reference called ref.bam, and a lookup dict
- 	#reffile = "ref.bam"
- 
+		 
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Intializing the reference
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -921,9 +918,6 @@ def main():
 			else:
 				DATAB[j1.donid][j1.accid] = int(JTAB[juncid]['cov'])
 
-
-	#for i in covbyedge.keys():
-	#	print i, covbyedge[i]
 
  	########################################
 	########################################
@@ -1060,9 +1054,6 @@ def main():
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# Print final results table
- 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
 
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  	# This is the one that is reported by default.  
@@ -1070,19 +1061,19 @@ def main():
  	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	'''
-	sens mode
+	sensitive mode table
 	'''
 	if cfile:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','incov','excov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
 	else:
-		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','incov','excov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
+		fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring','confounding_inccov','confounding_exccov', 'opt_calc_type','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi']
 
 	
 	RESULTS = eventdict
 	for i in RESULTS:
 		RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_sens']
-		RESULTS[i]['incov'] = RESULTS[i]['inccov_sens']
-		RESULTS[i]['excov'] = RESULTS[i]['exccov_sens'] 
+		RESULTS[i]['inccov'] = RESULTS[i]['inccov_sens']
+		RESULTS[i]['exccov'] = RESULTS[i]['exccov_sens'] 
 		RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_sens']
 		RESULTS[i]['exc_sites'] = RESULTS[i]['exc_sites_sens'] 
 		#print i, RESULTS[i]['incov'], RESULTS[i]['inccov_sens'], RESULTS[i]['excov'], RESULTS[i]['exccov_sens']
@@ -1102,6 +1093,7 @@ def main():
 	'''
 	
 	if (verbose != "F"):
+		# print a precise mode table
 		if cfile:
 			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','inccov_sens','exccov_sens','totalcov_sens','avgcovpersite_sens','inc_sites_sens','exc_sites_sens','inc_sens','exc_sens','psi_sens','confounding_inccov','confounding_exccov', 'joinstring_prec','inccov_prec','exccov_prec','totalcov_prec','avgcovpersite_prec','inc_sites_prec','exc_sites_prec','inc_prec','exc_prec', 'psi','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi','fpkm1','fpkm2','fpkm_proportion']
 		else:
@@ -1123,8 +1115,8 @@ def main():
 		RESULTS = eventdict
 		for i in RESULTS:
 			RESULTS[i]['joinstring'] = RESULTS[i]['joinstring_prec']
-			RESULTS[i]['incov'] = RESULTS[i]['inccov_prec']
-			RESULTS[i]['excov'] = RESULTS[i]['exccov_prec'] 
+			RESULTS[i]['inccov'] = RESULTS[i]['inccov_prec']
+			RESULTS[i]['exccov'] = RESULTS[i]['exccov_prec'] 
 			RESULTS[i]['inc_sites'] = RESULTS[i]['inc_sites_prec']
 			RESULTS[i]['exc_sites'] = RESULTS[i]['exc_sites_prec'] 
 			RESULTS[i]['inc'] = RESULTS[i]['inc_prec']
@@ -1136,14 +1128,16 @@ def main():
 	
 		'''
 		opt mode
+		-- Deprecated -- 
 		'''
-		if cfile:
-			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
-		else:
-			fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
+		# This was a convenience table, and it is leading to confusion, removed for now
+		#if cfile:
+		#	fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','inc_sites','exc_sites','inc','exc', 'totalcov','avgcovpersite','psi','fpkm1','fpkm2','fpkm_proportion']
+		#else:
+		#	fieldorder = ['event_id','gene_id','gene_name', 'eventcode','structure','transcript_id','joinstring_sens','confounding_inccov','confounding_exccov', 'opt_calc_type','joinstring','inccov','exccov','totalcov','avgcovpersite','inc_sites','exc_sites','inc','exc', 'psi']
 	
 		
-		RESULTS = eventdict
+		#RESULTS = eventdict
 		# This is deprecated
 		#print_output_table_firstiskey(RESULTS,asta_counts_out_opt,fieldorder)
 

@@ -25,7 +25,7 @@ head -1 female_rep1/juncs.all | cut -f 1-7 > all_juncs.txt
 tail +2 -q female_rep1/juncs.all female_rep2/juncs.all male_rep1/juncs.all male_rep2/juncs.all | cut -f 1-7 | sort -u >> all_juncs.txt
 
 # The above makes a file with juncid plus these descriptive fields:
-#    dinucleotide,ntron_size,annostatus,gmcode,regcode,geneassign
+#    dinucleotide,intron_size,annostatus,gmcode,regcode,geneassign
 # these fields are not strictly necessary for downstream analysis,
 # but it is more convenient to pass these through, rather than to 
 # regenerate them from annotation.
