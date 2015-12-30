@@ -71,7 +71,9 @@ def prep_ref(gtffile,fastafile,output_dir):
 	except:
 		print "Error:  Can't call 'gtf_to_sam.'"  
 		print "Please check that Cufflinks is installed and in your path."
-		quit()		
+		quit()	
+		
+			
 	'''
 	Check to see that fastafile is already indexed before trying to index it
 	'''
@@ -86,22 +88,87 @@ def prep_ref(gtffile,fastafile,output_dir):
 			quit()
 
 	fastidx = fastafile + ".fai"
+
+
+	'''
+	Clean the GTF file so it only has the chrs with sequence
+	'''
+	# Make a list of the seqs in fasta
+	infile = open(fastidx, 'r')
+	chrlist = []
+	for line in infile:
+		values = line.split("\t")
+		chrlist.append(values[0])
+	'''
+		# The below would check each line of GTF (look at SAM instead)
+		# Now compare to GTF file
+		infile = open(gtffile, 'r')
+		linedict = {}
+		for line in infile:
+			line = line.rstrip()
+			values = line.split("\t")
+			if len(values) > 1:
+				linedict[values[0]] = values[0]
+		for chr in linedict.keys():
+			if chr in chrlist:
+				pass
+			else:
+				print chr, "not in list"
+	'''
+
+	'''
+	 If any lines are from chr not in faix, filter them out
+	'''
+	
+	samfile = tmp_dir + "/ref.sam"
+	samfile_cleaned = tmp_dir + "/ref_cleaned.sam"
+	infile = open(samfile, 'r')
+	#print >> fout, '\t'.join(headings)
+	errorchr = {}
+	errorcount = 0;
+	outfile = open(samfile_cleaned, 'w')
+	for line in infile:
+		line = line.rstrip()
+		values = line.split("\t")
+		if values[2] in chrlist:
+			print >> outfile, "\t".join(values)
+		else:
+			errorchr[values[2]] = values[2]
+			errorcount += 1
+
+	# Report errors
+	if errorchr.keys():
+		print "WARNING:"
+		print "		Some transcripts did not have a fasta sequence and were excluded"
+		print "		This affected", errorcount, "transcripts on the following chromosomes:"
+		for chr in errorchr.keys():
+			print "		", chr
+			
+	'''
+	Convert to BAM
+	'''
+
 	print >> sys.stderr, "[%s] Convert SAM reference to BAM", timestamp()
 	#subprocess.check_output(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"])
 	
-	p = subprocess.Popen(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref.sam"], stderr=subprocess.PIPE)
+	p = subprocess.Popen(["samtools", "view", "-o", tmp_dir + "/headered.bam", "-bt", fastidx,  tmp_dir + "/ref_cleaned.sam"], stderr=subprocess.PIPE)
 	out, err = p.communicate()
-	
+
+	'''
+	Throw error if there are gene models in gtf that are not in fasta
+	'''
+
 	pattern = re.compile('recognized')
 	errlines = err.split("\n")
 
 	for line in errlines:
 		m = pattern.search(line)	
 		if m:
-			print "ERROR: GTF does not match reference fasta"
+			print "WARNING: GTF does not match reference fasta"
 			print "\tAs reported by samtools:"
 			print "\t", line
-			quit()
+			# Now let it continue if you get this error
+			#quit()
 	
 	subprocess.call(["samtools","sort",tmp_dir + "/headered.bam",tmp_dir + "/ref"])
 	subprocess.call(["samtools", "index", tmp_dir + "/ref.bam"])
