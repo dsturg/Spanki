@@ -15,7 +15,7 @@ import operator
 from fisher import pvalue
 # Uses brent pedersen's model from pypi
 
-from scikits.statsmodels.sandbox.stats.multicomp import fdrcorrection0
+from statsmodels.sandbox.stats.multicomp import fdrcorrection0
 # BH correction is from http://statsmodels.sourceforge.net/devel/install.html
 
 # Custom modules to import:
