@@ -25,6 +25,5 @@ setup(
         	"scikits.statsmodels >= 0.3.1",
         	"biopython >= 1.50",
         	"pyfasta >= 0.4.4",
-        	"argparse >= 1.2.1",
          	"pysam >= 0.5"]
     )
