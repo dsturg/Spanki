@@ -22,9 +22,8 @@ setup(
         install_requires=[
         	"fisher >= 0.1.4",
          	"scipy >= 0.1.10",
-        	"scikits.statsmodels >= 0.3.1",
+        	"statsmodels >= 0.3.1",
         	"biopython >= 1.50",
         	"pyfasta >= 0.4.4",
-        	"argparse >= 1.2.1",
          	"pysam >= 0.5"]
     )

@@ -42,7 +42,7 @@ samtools http://samtools.sourceforge.net/
 Cufflinks (Spanky uses the gtf_to_sam utility to create a sam representation of a gtf reference) http://cufflinks.cbcb.umd.edu
 
 Required for splicing analysis:
-AStalavista (or a precomputed splicing event file) http://genome.crg.es/astalavista/
+AStalavista (or a precomputed splicing event file) http://sammeth.net/confluence/display/ASTA/Home
 
 Installation
 ---------------
