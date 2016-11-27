@@ -33,7 +33,7 @@ def gtf_to_attributes_dict(infn):
 				# This will cause a parsing error here.
 				# Note I now split on 'semicolon + space" - be on the lookout for exceptions
 				# such as gene names with spaces
-				del attributes[-1]
+				# del attributes[-1] #Turn off 
 				attributes = [x.strip() for x in attributes]
 				for attribute in attributes:
 					attr = attribute.strip().split(" ") # Split each item in attibutes line by space
