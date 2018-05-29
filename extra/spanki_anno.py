@@ -14,16 +14,15 @@ if __name__ == "__main__":
         help="The reference file in fasta format.")
 
     (options, args) = parser.parse_args()
-    fid = open(options.ref_file, 'r')
-    fasta = fid.readlines()
-    fid.close()
-    
+
     fasta_out = ".".join(options.ref_file.split(".")[:-1])
     fid = open(fasta_out + ".spanki.fa", "w")
 
-    for i in range(len(fasta)):
-        if fasta[i][0] != ">":
-            fid.writelines(fasta[i])
-        else:
-            fid.writelines(fasta[i].split()[0] + "\n")
+    with open(options.ref_file, 'r') as infile:
+        for line in infile:
+            if line.startswith(">"):
+                fid.writelines(line.rstrip().split()[0] + "\n")
+            else:
+                fid.writelines(line)
     fid.close()
+    
