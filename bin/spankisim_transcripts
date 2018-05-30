@@ -1381,11 +1381,11 @@ def main():
 		elif txtab:
 		 	if 'rpk' in txtab[mytx].keys():
 		 		abundance_metric = "RPK"
-		 		abundance_value =  int(txtab[mytx]['rpk'])
+		 		abundance_value = float(txtab[mytx]['rpk'])
 		 		numreads = int(abundance_value * len(myseq_spliced)/1000)
 		 	elif 'cov' in txtab[mytx].keys():
 		 		abundance_metric = "Coverage"
- 				abundance_value = int(txtab[mytx]['cov'])
+ 				abundance_value = float(txtab[mytx]['cov'])
 		 		covtimeslength = abundance_value * len(myseq_spliced)
 				numreads = int(covtimeslength / mybp)
 			else:
